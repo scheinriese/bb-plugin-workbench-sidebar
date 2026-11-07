@@ -40,7 +40,10 @@ export const sidebarThreadSchema = z.object({
 export type SidebarThreadDto = z.infer<typeof sidebarThreadSchema>;
 export const sidebarRpcMethods = {
   sidebarState: {
-    input: z.object({ version: z.literal(1) }),
+    input: z.object({
+      version: z.literal(1),
+      timezoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
+    }),
     output: z.object({
       version: z.literal(1),
       revision: z.string(),

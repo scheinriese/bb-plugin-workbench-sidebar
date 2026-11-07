@@ -131,6 +131,22 @@ describe("Boat sidebar projection", () => {
       )?.tone,
     ).toBe("success");
   });
+  it("shows the one neutral reset exception only when the producer supplies a known resume line", () => {
+    const paused = dto("t", {
+      status: "waiting-reset",
+      moving: false,
+      secondLine: { text: "Waits for reset · 4:00 pm", tone: "neutral" },
+    });
+    expect(secondLineFor(paused)).toEqual(paused.secondLine);
+    expect(secondLineFor({ ...paused, secondLine: null })).toBeNull();
+    expect(
+      secondLineFor({
+        ...paused,
+        secondLine: { text: "No authored time", tone: "attention" },
+      }),
+    ).toBeNull();
+    expect(secondLineFor({ ...paused, status: "working" })).toBeNull();
+  });
   it("enforces v1 and the 2000-row response bound", () => {
     const schema = sidebarRpcMethods.sidebarState.output;
     expect(

@@ -1,7 +1,9 @@
 import { useOrderHold, holdComparator } from "../workbench/OrderHold.js";
 import { firstRollupCrossings } from "../workbench/auto-collapse.js";
-import { preferenceValueAtom } from "../preferences/preferences-sync.js";
-import { collapsedThreadIdsAtom } from "../preferences/atoms.js";
+import {
+  collapsedThreadIdsAtom,
+  rollupSeenThreadIdsAtom,
+} from "../preferences/atoms.js";
 import {
   ThreadListVisibility,
   ThreadListMore,
@@ -1558,9 +1560,7 @@ function ProjectListComponent({
   const activeRename = useSidebarRenameState();
   const sortRename = chronologicalSort === "alpha" ? activeRename : null;
   const heldOrder = useOrderHold();
-  const [rollupSeen, setRollupSeen] = useAtom(
-    preferenceValueAtom("rollupSeenThreads"),
-  );
+  const [rollupSeen, setRollupSeen] = useAtom(rollupSeenThreadIdsAtom);
   const setRollupCollapsed = useSetAtom(collapsedThreadIdsAtom);
   useEffect(() => {
     if (heldOrder || !preferencesReady) return;

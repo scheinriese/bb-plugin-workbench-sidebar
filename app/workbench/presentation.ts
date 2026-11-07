@@ -108,6 +108,10 @@ export function secondLineFor(
   }
   if (boat?.role === "orchestrator" || (boat?.role === "chat" && boat.rollup))
     return null;
+  // The producer emits this neutral line only for an actual paused task with
+  // a known reset/resume time. Missing time remains a one-line idle row.
+  if (boat?.status === "waiting-reset")
+    return boat.secondLine?.tone === "neutral" ? boat.secondLine : null;
   return boat && ["needs-you", "broken", "ready"].includes(boat.status)
     ? boat.secondLine
     : null;

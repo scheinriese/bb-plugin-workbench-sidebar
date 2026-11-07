@@ -631,6 +631,7 @@ function ThreadRowComponent({
     isNew && "wb-row-new",
     secondLine && "wb-two-line",
     isReview && "wb-review",
+    thread.boat?.status === "waiting-reset" && "wb-waiting-reset",
     showActive && "wb-selected",
     newsShimmer && "wb-news-arrived",
     SIDEBAR_HOVER_ACTIONS_ROW_CLASS,
@@ -795,13 +796,30 @@ function ThreadRowComponent({
             )}
           >
             {showProviderIcons || thread.boat ? (
-              <ProviderActivity
-                provider={provider}
-                providerId={providerId}
-                working={workbenchWorking}
-                review={isReview}
-                done={thread.boat?.status === "shipped"}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="wb-provider-tooltip pointer-events-auto"
+                    data-sidebar-thread-provider={provider?.id}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      rowLinkRef.current?.click();
+                    }}
+                  >
+                    <ProviderActivity
+                      provider={provider}
+                      providerId={providerId}
+                      working={workbenchWorking}
+                      review={isReview}
+                      done={thread.boat?.status === "shipped"}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {provider?.displayName ?? providerId}
+                </TooltipContent>
+              </Tooltip>
             ) : null}
             <span className="wb-text-column">
               <span className="wb-title-line">
@@ -825,7 +843,9 @@ function ThreadRowComponent({
                     )}
                   </span>
                 )}
-                {parentOptions && hasChildren ? (
+                {parentOptions &&
+                hasChildren &&
+                (!isCompactViewport || options.depth === 0 || isRollupGroup) ? (
                   <SidebarChildToggleChevron
                     disabled={isEditing}
                     className={isEditing ? "hidden" : "wb-disclosure"}
@@ -972,6 +992,7 @@ function ThreadRowComponent({
                     rowStatus={pluginThreadRowStatus}
                     collapsed={hasHiddenChildren}
                     isNew={isNew}
+                    showNativeActivity={!showProviderIcons && !thread.boat}
                   />
                 )}
               </span>

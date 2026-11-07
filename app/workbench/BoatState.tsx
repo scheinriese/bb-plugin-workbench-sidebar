@@ -35,7 +35,10 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
         const result = await sdk.plugins.callRpc({
           pluginId: "boat",
           method: "sidebarState",
-          input: { version: 1 },
+          input: {
+            version: 1,
+            timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+          },
           outputSchema: sidebarRpcMethods.sidebarState.output,
           signal: controller.signal,
         });

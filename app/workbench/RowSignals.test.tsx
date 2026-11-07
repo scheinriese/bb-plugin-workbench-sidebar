@@ -26,6 +26,30 @@ const state = threadListIndicatorStateForThread(
   false,
 );
 describe("Workbench signal geometry", () => {
+  it.each([false, true])(
+    "retains native working signals when provider icons are hidden (draft %s)",
+    (draft) => {
+      const { container } = render(
+        <DotSlot
+          state={{
+            ...state,
+            hasUnreadSuccess: false,
+            isRuntimeActive: true,
+            hasUnsubmittedDraft: draft,
+          }}
+          rowStatus={null}
+          collapsed={false}
+          showNativeActivity
+        />,
+      );
+      expect(
+        container.querySelector(".wb-dot-slot")!.childElementCount,
+      ).toBeGreaterThan(0);
+      expect(
+        container.querySelector('path[d="M8.2 1.8l2 2L4 10H2V8l6.2-6.2z"]'),
+      ).toBeNull();
+    },
+  );
   it("renders exact quarter arcs without rotating provider marks", () => {
     const { container } = render(
       <ProviderActivity

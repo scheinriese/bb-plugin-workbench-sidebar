@@ -73,12 +73,14 @@ export function DotSlot({
   rowStatus,
   collapsed,
   isNew = false,
+  showNativeActivity = false,
 }: {
   boat?: SidebarThreadDto;
   state: ThreadListIndicatorState;
   rowStatus: PluginSidebarThreadRowStatus | null;
   collapsed: boolean;
   isNew?: boolean;
+  showNativeActivity?: boolean;
 }) {
   let tone: "attention" | "danger" | "news" | null = null;
   const rollup = collapsed ? boat?.rollup : null;
@@ -106,6 +108,10 @@ export function DotSlot({
     rowStatus &&
     resolution.rowStatusIsVisible &&
     !state.hasUnsubmittedDraft;
+  const nativeActivity =
+    showNativeActivity &&
+    !boat &&
+    ["runtime", "working-draft"].includes(resolution.indicatorKind);
   return (
     <span
       className={`wb-dot-slot${isNew && !state.hasUnsubmittedDraft && tone !== "attention" && tone !== "danger" ? " wb-new-slot" : ""}`}
@@ -120,7 +126,9 @@ export function DotSlot({
       aria-label={resolution.accessibleLabel ?? undefined}
       title={resolution.accessibleLabel ?? undefined}
     >
-      {state.hasUnsubmittedDraft ? (
+      {nativeActivity ? (
+        <ThreadStatusGlyph indicator={resolution.indicatorKind} />
+      ) : state.hasUnsubmittedDraft ? (
         <svg
           width="12"
           height="12"

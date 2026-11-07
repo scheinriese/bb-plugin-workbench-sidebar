@@ -450,6 +450,37 @@ describe("ThreadRow", () => {
     expect(slot.inspection.navigateCalls).toEqual([]);
   });
 
+  it.each([0, 1])(
+    "shows a phone disclosure only for the level-1 parent (depth %s)",
+    (depth) => {
+      const toggle = vi.fn();
+      renderThreadRow({
+        thread: createThread({
+          title: "Parent thread",
+          displayTitle: "Parent thread",
+        }),
+        isCompactViewport: true,
+        options: {
+          kind: "parent",
+          depth,
+          isCompact: true,
+          isCollapsed: false,
+          childCount: 1,
+          childActivity: NO_COLLAPSED_CHILD_ACTIVITY,
+          onToggleCollapsed: toggle,
+        },
+      });
+      const button = screen.queryByRole("button", {
+        name: "Collapse Parent thread threads",
+      });
+      if (depth === 0) {
+        expect(button).not.toBeNull();
+        fireEvent.click(button!);
+        expect(toggle).toHaveBeenCalledOnce();
+      } else expect(button).toBeNull();
+    },
+  );
+
   it.each([
     ["meta", { metaKey: true }],
     ["ctrl", { ctrlKey: true }],

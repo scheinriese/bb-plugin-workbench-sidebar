@@ -116,6 +116,9 @@
   line-height: 14px;
   color: #8a8a8a;
 }
+.wb-list .wb-waiting-reset .wb-second-line {
+  color: #7a7a7a;
+}
 .wb-list [data-tone="attention"] {
   color: #f0b135;
 }
@@ -623,4 +626,14 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
     var(--muted-foreground) 50%,
     var(--sidebar-foreground) 70%
   );
+}
+/* Native hover actions need their space when a long parent title reaches the
+   disclosure. Idle geometry stays exact; controls never cover the chevron. */
+.wb-list:not([data-workbench-mobile])
+  .wb-row:not(:has(input, kbd)):hover
+  .wb-row-main,
+.wb-list:not([data-workbench-mobile])
+  .wb-row:has([data-sidebar-hover-actions-open="true"])
+  .wb-row-main {
+  padding-right: calc(var(--bb-sidebar-hover-actions-inset, 0px) + 16px);
 }

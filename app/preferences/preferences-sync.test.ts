@@ -14,6 +14,7 @@ import {
 } from "./preferences-sync.js";
 import { createSyncedPreferenceAtom } from "./synced-preference-atom.js";
 import { defaultPreferences } from "../../shared/preferences.js";
+import { rollupSeenThreadIdsAtom, collapsedThreadIdsAtom } from "./atoms.js";
 
 function fakeRpc(
   preferences: Record<string, unknown> = {},
@@ -166,6 +167,33 @@ describe("preferences sync", () => {
         },
       ],
     );
+  });
+
+  it("persists the first rollup crossing separately from a later manual expansion", async () => {
+    const rpc = fakeRpc();
+    await hydratePreferences(rpc);
+    const store = getDefaultStore();
+    store.set(rollupSeenThreadIdsAtom, ["parent"]);
+    store.set(collapsedThreadIdsAtom, ["parent"]);
+    vi.advanceTimersByTime(200);
+    await flushPreferenceWritesForTest();
+    store.set(collapsedThreadIdsAtom, []);
+    vi.advanceTimersByTime(200);
+    await flushPreferenceWritesForTest();
+    expect(
+      rpc.calls
+        .filter((call) => call.method === "setPreference")
+        .map((call) => {
+          const { key, value } = call.input as { key: string; value: unknown };
+          return { key, value };
+        }),
+    ).toEqual([
+      { key: "rollupSeenThreads", value: ["parent"] },
+      { key: "collapsedThreads", value: ["parent"] },
+      { key: "collapsedThreads", value: [] },
+    ]);
+    expect(store.get(rollupSeenThreadIdsAtom)).toEqual(["parent"]);
+    expect(store.get(collapsedThreadIdsAtom)).toEqual([]);
   });
 
   it("takes a remote change from another window unless a local write is pending", async () => {

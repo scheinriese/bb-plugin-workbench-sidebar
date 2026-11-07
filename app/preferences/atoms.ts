@@ -5,6 +5,8 @@ export const collapsedProjectIdsAtom =
   createSyncedPreferenceAtom("collapsedProjects");
 export const collapsedThreadIdsAtom =
   createSyncedPreferenceAtom("collapsedThreads");
+export const rollupSeenThreadIdsAtom =
+  createSyncedPreferenceAtom("rollupSeenThreads");
 export const collapsedEnvironmentIdsAtom = createSyncedPreferenceAtom(
   "collapsedEnvironments",
 );
