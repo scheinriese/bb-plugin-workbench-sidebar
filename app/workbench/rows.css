@@ -340,12 +340,23 @@
   font-weight: 400;
 }
 .wb-list .wb-shipped-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   height: 28px;
-  font-size: 11px;
-  line-height: 28px;
+  font-size: 13px;
+  line-height: 16px;
   color: #8a8a8a;
   text-decoration: none;
+}
+.wb-list .wb-shipped-link > svg {
+  flex: none;
+}
+.wb-list .wb-shipped-arrow {
+  color: #7aa7ff;
+}
+.wb-list[data-workbench-mobile] .wb-shipped-link {
+  height: 40px;
 }
 .wb-list .wb-shipped-link:hover {
   color: #c1c1c1;
@@ -577,7 +588,9 @@
     > [data-sidebar-sticky-tier="label"][data-workbench-pinned="true"]
   ) {
   --bb-sidebar-sticky-label-height: 40px;
-  --bb-sidebar-sticky-project-top: calc(var(--bb-sidebar-sticky-label-top) + 40px);
+  --bb-sidebar-sticky-project-top: calc(
+    var(--bb-sidebar-sticky-label-top) + 40px
+  );
   --bb-sidebar-sticky-parent-base-top: var(--bb-sidebar-sticky-project-top);
 }
 .wb-list[data-workbench-mobile]
@@ -585,4 +598,29 @@
   height: 40px;
   min-height: 40px;
   margin-bottom: -4px;
+}
+/* Keep native light-theme readability; the Paper palette above is dark-only. */
+html:not(.dark) .wb-list {
+  --wb-title: var(--sidebar-foreground);
+  --wb-guide: var(--border-hairline);
+  --wb-selected: var(--state-active);
+}
+html:not(.dark) .wb-list .wb-selected .wb-title {
+  color: var(--sidebar-foreground);
+}
+html:not(.dark) .wb-list .wb-review .wb-title,
+html:not(.dark) .wb-list [data-sidebar-sticky-tier="label"],
+html:not(.dark) .wb-list .wb-new-word {
+  color: var(--muted-foreground);
+}
+html:not(.dark) .wb-list .wb-dot[data-tone="news"] {
+  color: var(--sidebar-foreground);
+}
+html:not(.dark) .wb-list .wb-news-arrived .wb-title {
+  background-image: linear-gradient(
+    100deg,
+    var(--sidebar-foreground) 30%,
+    var(--muted-foreground) 50%,
+    var(--sidebar-foreground) 70%
+  );
 }

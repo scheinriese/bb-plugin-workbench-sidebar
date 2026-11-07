@@ -18,6 +18,7 @@ interface SidebarChildToggleChevronProps {
   onToggle: () => void;
   revealOnHover?: boolean;
   className?: string;
+  compact?: boolean;
 }
 
 export function SidebarChildToggleChevron({
@@ -28,6 +29,7 @@ export function SidebarChildToggleChevron({
   onToggle,
   revealOnHover = false,
   className,
+  compact = false,
 }: SidebarChildToggleChevronProps) {
   return (
     <button
@@ -53,14 +55,27 @@ export function SidebarChildToggleChevron({
         className,
       )}
     >
-      <Icon
-        name="ChevronRight"
-        className={cn(
-          "size-3 transition-transform duration-150",
-          !isCollapsed && "rotate-90",
-        )}
-        aria-hidden="true"
-      />
+      {compact ? (
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <path
+            d={isCollapsed ? "M3.5 2l3 3-3 3" : "M2 3.5l3 3 3-3"}
+            fill="none"
+            stroke="#6E6E6E"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <Icon
+          name="ChevronRight"
+          className={cn(
+            "size-3 transition-transform duration-150",
+            !isCollapsed && "rotate-90",
+          )}
+          aria-hidden="true"
+        />
+      )}
     </button>
   );
 }

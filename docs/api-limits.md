@@ -43,3 +43,13 @@ The screenshot API returns JPEG payloads even under .png filenames; its
 schema offers no format field. Read-only Paper export with explicit1xPNG
 removes this compression for final reference images. Existing user downloads
 are checked before export, and references are copied into this repo.
+
+Exact evidence at the pinned upstream revision:
+- Public SDK0.6.104 bundled-types/bb-plugin-sdk-app.d.ts:19177 describes the
+  exclusive scrolling thread area; :19180 lists its supplied props. :19872
+  defines PluginSidebarThread, with originKind/originPluginId at :19898.
+- [Host list mount](https://github.com/get-bb/bb/blob/e003e9510cbfd3bb6c26a28630b46ffb1c242a44/apps/app/src/components/sidebar/PluginThreadList.tsx#L83)
+  receives only the thread-list props.
+- [Host navigation/footer/list separation](https://github.com/get-bb/bb/blob/e003e9510cbfd3bb6c26a28630b46ffb1c242a44/apps/app/src/components/sidebar/AppSidebar.tsx#L225)
+  places navigation at225, footer256, list339.
+- [Separate Settings sidebar loader](https://github.com/get-bb/bb/blob/e003e9510cbfd3bb6c26a28630b46ffb1c242a44/apps/app/src/components/settings/LazySettingsSidebar.tsx#L29).

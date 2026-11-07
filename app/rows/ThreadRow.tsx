@@ -5,7 +5,11 @@ import {
   DotSlot,
   useNewsShimmer,
 } from "../workbench/RowSignals.js";
-import { secondLineFor, rowGeometry } from "../workbench/presentation.js";
+import {
+  secondLineFor,
+  rowGeometry,
+  MANY_TASKS_THRESHOLD,
+} from "../workbench/presentation.js";
 import {
   memo,
   createContext,
@@ -578,6 +582,18 @@ function ThreadRowComponent({
   );
   const isActionsOpen = isDropdownActionsOpen || isContextActionsOpen;
   const boatStates = useBoatState();
+  const isRollupGroup = useMemo(
+    () =>
+      thread.boat?.rollup != null &&
+      [...boatStates.values()].filter(
+        (row) =>
+          row.role === "task" &&
+          row.parentThreadId === thread.id &&
+          !row.hidden &&
+          row.status !== "shipped",
+      ).length >= MANY_TASKS_THRESHOLD,
+    [boatStates, thread.id, thread.boat?.rollup],
+  );
   const { isNew, newChildren } = useNewThreadSignals(
     thread,
     boatStates,
@@ -814,10 +830,11 @@ function ThreadRowComponent({
                     disabled={isEditing}
                     className={isEditing ? "hidden" : "wb-disclosure"}
                     isCollapsed={isParentCollapsed}
+                    compact={isRollupGroup}
                     expandLabel={`Expand ${labelTitle} threads`}
                     collapseLabel={`Collapse ${labelTitle} threads`}
                     onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
-                    revealOnHover={!isParentCollapsed}
+                    revealOnHover={!isParentCollapsed && !isRollupGroup}
                   />
                 ) : null}
               </span>

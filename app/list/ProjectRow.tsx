@@ -1634,7 +1634,27 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               href={node.thread.href}
               onClick={onProjectSelect}
             >
-              {node.thread.boat!.rollup!.shippedToday} shipped today →
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                aria-hidden="true"
+              >
+                <path
+                  d="M5.5 9.2l2.3 2.3 4.7-5"
+                  fill="none"
+                  stroke="#5BD08A"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>
+                {node.thread.boat!.rollup!.shippedToday} shipped today
+              </span>
+              <span className="wb-shipped-arrow" aria-hidden="true">
+                →
+              </span>
             </a>
           ) : null}
           {nestPreviewThread !== null && nestPreviewBeforeKey === null ? (
