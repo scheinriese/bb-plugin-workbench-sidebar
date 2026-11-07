@@ -1,0 +1,7 @@
+node_modules/
+dist/
+upstream/
+fidelity-work/*
+!fidelity-work/sidebar-report.md
+!fidelity-work/scaffold.py
+build-shots/
