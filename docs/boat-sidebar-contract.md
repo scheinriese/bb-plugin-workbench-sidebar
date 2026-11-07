@@ -13,7 +13,9 @@ JavaScript sign: local time is UTC minus the offset. `{version:1}` remains
 valid with the producer's server-local fallback. Berlin winter time is -60.
 
 The response is `{version:1, revision:string, threads:SidebarThreadDto[],
-truncated:boolean}`; at most 2000 records. Every record contains:
+truncated:boolean,queuedStarts?:SidebarQueuedStartDto[]}`; at most 2000 thread records
+and200 queued request rows. See [queued starts](queued-starts.md) for the additive
+request schema, restricted actions and genuine-chat replacement rules. Every record contains:
 
 | Field          | Meaning                                                                    |
 | -------------- | -------------------------------------------------------------------------- |

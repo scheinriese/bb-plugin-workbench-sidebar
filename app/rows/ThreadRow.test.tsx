@@ -500,6 +500,17 @@ describe("ThreadRow", () => {
     expect(document.querySelector<HTMLElement>(".wb-row")?.style.height).toBe(collapsed ? "42px" : "28px");
   });
 
+  it("appends actual waiting requests after working in a collapsed rollup", () => {
+    renderThreadRow({
+      thread: Object.assign(createThread({ title: "Docs", displayTitle: "Docs" }), {
+        workbenchChildren: { open: 7, working: 3 }, workbenchWaiting: 2,
+      }),
+      options: { kind: "parent", depth: 0, isCompact: false, isCollapsed: true,
+        childCount: 9, childActivity: NO_COLLAPSED_CHILD_ACTIVITY, onToggleCollapsed: vi.fn() },
+    });
+    expect(screen.getByText("7 threads · 3 working · 2 waiting")).toBeTruthy();
+  });
+
   it("retains the phone disclosure for a nested generic rollup", () => {
     renderThreadRow({
       thread: Object.assign(createThread({ title: "Docs", displayTitle: "Docs" }), {

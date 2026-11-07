@@ -2,6 +2,9 @@ import {
   ThreadCreationPlacementScope,
   useThreadCreationPlacement,
 } from "./ThreadCreationPlacement.js";
+import { useQueuedStarts } from "../workbench/BoatState.js";
+import { QueuedStartRow } from "../workbench/QueuedStartRow.js";
+import { queueRequestOrder, partitionQueuedChildren } from "../workbench/queued-starts.js";
 import {
   ThreadListVisibility,
   ThreadListMore,
@@ -1467,8 +1470,11 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
   sortableRef,
   sortableStyle,
 }: ThreadTreeNodeRowProps) {
+  const queuedStarts = useQueuedStarts();
+  const queued = useMemo(() => queueRequestOrder(queuedStarts, node.thread.id), [queuedStarts, node.thread.id]);
+  const partition = useMemo(() => partitionQueuedChildren(node.children, queued), [node.children, queued]);
   const isCollapsed = collapsedThreadIds.has(node.thread.id);
-  const hasChildren = node.children.length > 0;
+  const hasChildren = node.children.length > 0 || queued.length > 0;
   const isParent = hasChildren;
   const nestDropEnabled = Boolean(sectionDnd);
   const { setNodeRef: setNestDropNodeRef } = useDroppable({
@@ -1522,7 +1528,7 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
     () =>
       getThreadRowOptions({
         childActivity: node.stats.childActivity,
-        childCount: node.stats.childCount,
+        childCount: node.stats.childCount + queued.length - partition.replacements.size,
         consumeClickSuppression,
         dragBindings,
         depthOffset,
@@ -1546,6 +1552,8 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
       hasChildren,
       nestDrop,
       node,
+      queued.length,
+      partition.replacements.size,
       onToggleThreadCollapsed,
     ],
   );
@@ -1553,7 +1561,7 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
   const crossProjectId = rowProjectId !== projectId ? rowProjectId : null;
   const { itemKeys, estimateRows, getNavigationEntries, alwaysMountedKeys } =
     useWindowedThreadItems({
-      items: node.children,
+      items: partition.items,
       collapsedThreadIds,
       collapsedEnvironmentIds,
       selectedThreadId,
@@ -1591,7 +1599,7 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               getNavigationEntries={getNavigationEntries}
               alwaysMountedKeys={alwaysMountedKeys}
               renderItem={(index) => {
-                const item = node.children[index];
+                const item = partition.items[index];
                 if (!item) {
                   return null;
                 }
@@ -1627,6 +1635,18 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               }}
             />
           ) : null}
+          {showChildren ? queued.map(request => {
+            const replacement = request.taskThreadId ? partition.replacements.get(request.taskThreadId) : null;
+            return <Fragment key={`queued:${request.id}`}>
+              {replacement ? <SectionDndItemRow
+                projectId={rowProjectId} item={replacement} depthOffset={depthOffset}
+                selectedThreadId={selectedThreadIdWithin(replacement, selectedThreadId)}
+                collapsedThreadIds={collapsedThreadIds} collapsedEnvironmentIds={collapsedEnvironmentIds}
+                onProjectSelect={onProjectSelect} onToggleThreadCollapsed={onToggleThreadCollapsed}
+                onToggleEnvironmentCollapsed={onToggleEnvironmentCollapsed} sectionDnd={sectionDnd ?? undefined}
+              /> : <QueuedStartRow row={request} depth={parentRowDepth + 1} onNavigate={onProjectSelect} />}
+            </Fragment>;
+          }) : null}
           {showChildren && (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? (
             <a
               className="wb-shipped-link"

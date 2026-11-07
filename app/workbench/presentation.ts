@@ -1,5 +1,5 @@
 import { compareHeldOrder } from "./order-policy.js";
-import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
+import type { SidebarThreadDto, SidebarQueuedStartDto } from "../../shared/boat-sidebar.js";
 import type { SidebarThread } from "../model/sidebar-thread.js";
 import {
   hasThreadListWorkingActivity,
@@ -69,6 +69,7 @@ export function compareBoatUrgency(
 export function applyBoatState(
   threads: readonly SidebarThread[],
   states: ReadonlyMap<string, SidebarThreadDto>,
+  queued: readonly SidebarQueuedStartDto[] = [],
 ): readonly SidebarThread[] {
   const visible: SidebarThread[] = threads.flatMap((thread) => {
     const boat = states.get(thread.id);
@@ -94,12 +95,16 @@ export function applyBoatState(
   const children = openChildSummaries(visible);
   const result = visible.map((thread) => {
     const own = children.get(thread.id);
+    const waiting = queued.filter(row => row.sourceThreadId === thread.id && row.state !== "started").length;
+    const replacement = queued.find(row => row.state === "started" && row.taskThreadId === thread.id);
     const siblings = thread.parentThreadId
       ? children.get(thread.parentThreadId)
       : undefined;
-    if ((!own || own.open < MANY_TASKS_THRESHOLD) && !thread.boat) return thread;
+    if ((!own || own.open < MANY_TASKS_THRESHOLD) && !thread.boat && !waiting && !replacement) return thread;
     return {
       ...thread,
+      ...(waiting ? { workbenchWaiting: waiting } : {}),
+      ...(replacement ? { workbenchQueuedStartId: replacement.id } : {}),
       ...(own && own.open >= MANY_TASKS_THRESHOLD
         ? { workbenchChildren: own }
         : {}),

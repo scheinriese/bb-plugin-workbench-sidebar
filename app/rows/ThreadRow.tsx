@@ -591,11 +591,11 @@ function ThreadRowComponent({
     boatStates,
     hasHiddenChildren,
   );
-  const summaryText =
-    isRollupGroup && isParentCollapsed
-      ? (thread.boat?.rollup && rollupText(thread.boat.rollup)) ||
-        genericRollupText(thread.workbenchChildren!)
-      : null;
+  const summaryParts = isParentCollapsed ? [
+    isRollupGroup ? (thread.boat?.rollup && rollupText(thread.boat.rollup)) || genericRollupText(thread.workbenchChildren!) : null,
+    thread.workbenchWaiting ? `${thread.workbenchWaiting} waiting` : null,
+  ].filter(Boolean) : [];
+  const summaryText = summaryParts.join(" · ") || null;
   const baseSecondLine = summaryText
     ? { text: summaryText, tone: "neutral" as const }
     : secondLineFor(thread.boat, false);

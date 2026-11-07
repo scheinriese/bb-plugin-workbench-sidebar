@@ -5,6 +5,8 @@ export type SidebarThread = PluginSidebarThread & {
   boat?: SidebarThreadDto;
   boatSiblingCount?: number;
   workbenchChildren?: { open: number; working: number };
+  workbenchWaiting?: number;
+  workbenchQueuedStartId?: string;
   workbenchHeldRank?: number;
   workbenchHeldThread?: SidebarThread;
 };

@@ -5,6 +5,14 @@
   --wb-guide: #343434;
   --wb-selected: #303030;
 }
+.wb-list .wb-queued-row { display: flex; align-items: flex-start; position: relative; }
+.wb-list .wb-queued-link { display: flex; align-items: flex-start; gap: 7px; flex: 1; min-width: 0; height: 100%; position: relative; z-index: 1; }
+.wb-list[data-workbench-mobile] .wb-queued-link { gap: 6px; }
+.wb-list .wb-request-actions { position: absolute; right: 6px; top: 4px; width: 24px; height: 24px; z-index: 2; opacity: 0; border-radius: 4px; }
+.wb-list .wb-queued-row:hover .wb-request-actions, .wb-list .wb-queued-row:focus-within .wb-request-actions { opacity: 1; }
+.wb-list .wb-queued-row:focus-within::before { box-shadow: inset 0 0 0 2px var(--sidebar-ring, #6e9be8); }
+.wb-list .wb-queued-row:hover .wb-text-column, .wb-list .wb-queued-row:focus-within .wb-text-column { padding-right: 24px; }
+.wb-list[data-workbench-mobile] .wb-request-actions { top: 8px; }
 .wb-list .wb-row {
   position: relative;
   box-sizing: border-box;

@@ -1,5 +1,5 @@
 import { useOrderHold } from "../workbench/OrderHold.js";
-import { useBoatState } from "../workbench/BoatState.js";
+import { useBoatState, useQueuedStarts } from "../workbench/BoatState.js";
 import { applyBoatState } from "../workbench/presentation.js";
 import { createContext, useContext, useMemo } from "react";
 import { useAtomValue } from "jotai";
@@ -200,12 +200,13 @@ export function useSidebarData() {
     experimental_lifecycles: lifecycles,
   });
   const boat = useBoatState();
+  const queued = useQueuedStarts();
   const held = useOrderHold();
   return useMemo(
     () => ({
       ...getSidebarData({
         ...state,
-        threads: applyBoatState(state.threads, boat).map((thread) =>
+        threads: applyBoatState(state.threads, boat, queued).map((thread) =>
           held
             ? {
                 ...thread,
@@ -217,7 +218,7 @@ export function useSidebarData() {
       }),
       archived: state.experimental_archived,
     }),
-    [state, boat, held],
+    [state, boat, queued, held],
   );
 }
 

@@ -19,4 +19,8 @@ npm run build
 The backend retains the complete upstream preference store and CLI under
 `bb workbench-sidebar prefs …`. Section organization and order, drafts,
 shortcuts, split gestures, menus, keyboard targets and compact layout remain.
-Boat is optional and read-only. No fake rows are included in the product.
+Boat is optional. Data reads are read-only; explicit request actions use its
+public RPCs. No fake rows are included in the product.
+Boat is an optional companion: queued starts appear as requests under their
+source chat, without allocating sidebar threads. “Start now” opens Boat's
+existing paid-choice form; “Cancel request” cancels only that request.

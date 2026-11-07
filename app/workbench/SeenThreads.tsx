@@ -5,13 +5,14 @@ import {
   useState,
   useCallback,
   useSyncExternalStore,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useRpc, experimental_useSidebarThreads } from "@get-bb/plugin-sdk/app";
 import type { threadListRpcContract } from "../../server.js";
 import type { SidebarThread } from "../model/sidebar-thread.js";
 import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
-import { useBoatState } from "./BoatState.js";
+import { useBoatState, useQueuedStarts } from "./BoatState.js";
 
 function createSeenStore() {
   let value: ReadonlySet<string> | null = null;
@@ -37,6 +38,7 @@ export function isNewForYou(
   seen: ReadonlySet<string> | null,
 ) {
   return (
+    !thread.workbenchQueuedStartId &&
     (thread.boat
       ? thread.boat.createdFor === "you"
       : thread.originPluginId !== null) &&
@@ -48,6 +50,7 @@ export function countNewChildren(
   parentId: string,
   states: ReadonlyMap<string, SidebarThreadDto>,
   seen: ReadonlySet<string> | null,
+  alreadyListed: readonly string[] = [],
 ): number {
   if (!seen) return 0;
   let count = 0;
@@ -58,6 +61,7 @@ export function countNewChildren(
       row.status !== "shipped" &&
       row.createdFor === "you" &&
       !seen.has(row.threadId)
+      && !alreadyListed.includes(row.threadId)
     )
       count++;
   }
@@ -83,8 +87,15 @@ export function SeenThreadsProvider({
 }) {
   const rpc = useRpc<typeof threadListRpcContract>();
   const boat = useBoatState();
+  const queued = useQueuedStarts();
   const hostThreads = experimental_useSidebarThreads().threads;
   const [store] = useState(createSeenStore);
+  useEffect(() => {
+    const ids = queued.filter(row => row.state === "started" && row.taskThreadId).map(row => row.taskThreadId!);
+    if (!ids.length) return;
+    store.set(new Set([...(store.get() ?? []), ...ids].slice(-10_000)));
+    void rpc.call("markThreadsSeen", { threadIds: ids }).catch(() => {});
+  }, [queued, rpc, store]);
   useEffect(() => {
     let disposed = false;
     void rpc
@@ -131,10 +142,12 @@ export function useNewThreadSignals(
   collapsed: boolean,
 ) {
   const store = useContext(SeenThreadsContext);
+  const queued = useQueuedStarts();
+  const listed = useMemo(() => queued.filter(row => row.state === "started" && row.taskThreadId).map(row => row.taskThreadId!), [queued]);
   const snapshot = useCallback(
     () =>
-      `${isNewForYou(thread, store.get()) ? 1 : 0}:${collapsed ? countNewChildren(thread.id, states, store.get()) : 0}`,
-    [store, thread, states, collapsed],
+      `${isNewForYou(thread, store.get()) ? 1 : 0}:${collapsed ? countNewChildren(thread.id, states, store.get(), listed) : 0}`,
+    [store, thread, states, collapsed, listed],
   );
   const value = useSyncExternalStore(store.subscribe, snapshot, snapshot);
   const [isNew, count] = value.split(":");

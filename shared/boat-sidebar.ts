@@ -38,6 +38,14 @@ export const sidebarThreadSchema = z.object({
   updatedAt: z.string(),
 });
 export type SidebarThreadDto = z.infer<typeof sidebarThreadSchema>;
+export const sidebarQueuedStartSchema = z.object({
+  id: z.string().min(1).max(100), revision: z.number().int().nonnegative(),
+  title: z.string().max(200), sourceThreadId: z.string().max(200).nullable(),
+  provider: z.enum(["claude", "codex"]).nullable(), resetsAt: z.string().max(100).nullable(),
+  createdAt: z.string().max(100), state: z.enum(["waiting", "dispatching", "started"]),
+  taskId: z.string().max(200).nullable(), taskThreadId: z.string().max(200).nullable(),
+});
+export type SidebarQueuedStartDto = z.infer<typeof sidebarQueuedStartSchema>;
 export const sidebarRpcMethods = {
   sidebarState: {
     input: z.object({
@@ -48,6 +56,7 @@ export const sidebarRpcMethods = {
       version: z.literal(1),
       revision: z.string(),
       threads: z.array(sidebarThreadSchema).max(2000),
+      queuedStarts: z.array(sidebarQueuedStartSchema).max(200).optional(),
       truncated: z.boolean(),
     }),
   },
