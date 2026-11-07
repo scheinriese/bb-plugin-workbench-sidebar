@@ -4,6 +4,7 @@ import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
 export type SidebarThread = PluginSidebarThread & {
   boat?: SidebarThreadDto;
   boatSiblingCount?: number;
+  workbenchChildren?: { open: number; working: number };
   workbenchHeldRank?: number;
   workbenchHeldThread?: SidebarThread;
 };

@@ -647,7 +647,7 @@ function getSelectionDragPreviewThread(
   thread: SidebarThread,
   count: number,
 ): SidebarThread & { displayTitle: string } {
-  const title = `${count} threads`;
+  const title = `${count} ${count === 1 ? "thread" : "threads"}`;
   return { ...thread, title, titleFallback: title, displayTitle: title };
 }
 
@@ -655,7 +655,7 @@ function getGroupDragPreviewThread(
   thread: SidebarThread,
   groupThreads: readonly SidebarThread[],
 ): SidebarThread & { displayTitle: string } {
-  const title = `${thread.environment?.name ?? thread.environment?.branchName ?? "Worktree group"} (${groupThreads.length} threads)`;
+  const title = `${thread.environment?.name ?? thread.environment?.branchName ?? "Worktree group"} (${groupThreads.length} ${groupThreads.length === 1 ? "thread" : "threads"})`;
   return { ...thread, title, titleFallback: title, displayTitle: title };
 }
 

@@ -4,6 +4,8 @@ import {
   compareBoatUrgency,
   secondLineFor,
   rowGeometry,
+  genericRollupText,
+  rollupText,
 } from "./presentation.js";
 import { buildProjectThreadGroups } from "../model/project-thread-groups.js";
 import { makeSidebarThread } from "../model/fixtures.js";
@@ -32,6 +34,30 @@ describe("Boat sidebar projection", () => {
   it("keeps generic data unchanged when Boat is absent", () => {
     const threads = [makeSidebarThread()];
     expect(applyBoatState(threads, new Map())).toBe(threads);
+  });
+  it("rolls up open generic children from authentic BB activity without Boat or invented urgency", () => {
+    const parent = makeSidebarThread({ id: "generic-parent" });
+    const children = Array.from({ length: 18 }, (_, i) => makeSidebarThread({
+      id: `child-${i}`, parentThreadId: parent.id,
+      runtimeStatus: i < 2 ? "active" : "idle",
+      activity: { workflows: i === 2 ? 1 : 0 },
+    }));
+    const result = applyBoatState([parent, ...children,
+      makeSidebarThread({ id: "archived", parentThreadId: parent.id, archivedAt: 1 }),
+      makeSidebarThread({ id: "hidden", parentThreadId: parent.id, isHidden: true }),
+      makeSidebarThread({ id: "grandchild", parentThreadId: children[0]!.id }),
+    ], new Map());
+    expect(result[0]?.workbenchChildren).toEqual({ open: 18, working: 3 });
+    expect(genericRollupText(result[0]!.workbenchChildren!)).toBe("18 threads · 3 working");
+    expect(result.slice(1, 19)).toEqual(children);
+    expect(compareBoatUrgency(children[0]!, children[1]!)).toBe(0);
+  });
+  it("uses correct singular counts and omits zero generic working counts", () => {
+    expect(genericRollupText({ open: 1, working: 0 })).toBe("1 thread");
+    expect(rollupText({ needsYou: 1, stopped: 1, ready: 1, working: 1, shippedToday: 1 }))
+      .toBe("1 needs you · 1 stopped · 1 ready · 1 working");
+    expect(rollupText({ needsYou: 2, stopped: 0, ready: 0, working: 0, shippedToday: 0 }))
+      .toBe("2 need you");
   });
   it("hides finished tasks and retired reviews only from sidebar, preserves generic and active reviews", () => {
     const threads = ["lead", "done", "retired", "review", "generic"].map((id) =>

@@ -1,9 +1,36 @@
 import { compareHeldOrder } from "./order-policy.js";
 import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
 import type { SidebarThread } from "../model/sidebar-thread.js";
+import {
+  hasThreadListWorkingActivity,
+  threadListIndicatorStateForThread,
+} from "../model/thread-activity.js";
 
 /** Owner-confirmed boundary: basic groups retain BB order. */
 export const MANY_TASKS_THRESHOLD = 7;
+/** Direct, open children from the public BB list; no inferred Boat statuses. */
+export function openChildSummaries(threads: readonly SidebarThread[]) {
+  const summaries = new Map<string, { open: number; working: number }>();
+  for (const thread of threads) {
+    if (!thread.parentThreadId || thread.isArchived || thread.isHidden) continue;
+    const summary = summaries.get(thread.parentThreadId) ?? {
+      open: 0,
+      working: 0,
+    };
+    summary.open += 1;
+    if (
+      hasThreadListWorkingActivity(threadListIndicatorStateForThread(thread, false))
+    )
+      summary.working += 1;
+    summaries.set(thread.parentThreadId, summary);
+  }
+  return summaries;
+}
+export function genericRollupText(
+  summary: NonNullable<SidebarThread["workbenchChildren"]>,
+) {
+  return `${summary.open} ${summary.open === 1 ? "thread" : "threads"}${summary.working ? ` · ${summary.working} working` : ""}`;
+}
 const urgency = {
   "needs-you": 0,
   broken: 1,
@@ -43,20 +70,7 @@ export function applyBoatState(
   threads: readonly SidebarThread[],
   states: ReadonlyMap<string, SidebarThreadDto>,
 ): readonly SidebarThread[] {
-  if (!states.size) return threads;
-  const siblingCounts = new Map<string, number>();
-  for (const row of states.values())
-    if (
-      row.role === "task" &&
-      !row.hidden &&
-      row.status !== "shipped" &&
-      row.parentThreadId
-    )
-      siblingCounts.set(
-        row.parentThreadId,
-        (siblingCounts.get(row.parentThreadId) ?? 0) + 1,
-      );
-  return threads.flatMap((thread) => {
+  const visible: SidebarThread[] = threads.flatMap((thread) => {
     const boat = states.get(thread.id);
     if (!boat) return [thread];
     // Filter only from the sidebar. Host search and other surfaces keep every thread.
@@ -74,18 +88,34 @@ export function applyBoatState(
         parentThreadId:
           boat.role === "chat" ? thread.parentThreadId : boat.parentThreadId,
         boat,
-        boatSiblingCount: boat.parentThreadId
-          ? (siblingCounts.get(boat.parentThreadId) ?? 0)
-          : 0,
       },
     ];
   });
+  const children = openChildSummaries(visible);
+  const result = visible.map((thread) => {
+    const own = children.get(thread.id);
+    const siblings = thread.parentThreadId
+      ? children.get(thread.parentThreadId)
+      : undefined;
+    if ((!own || own.open < MANY_TASKS_THRESHOLD) && !thread.boat) return thread;
+    return {
+      ...thread,
+      ...(own && own.open >= MANY_TASKS_THRESHOLD
+        ? { workbenchChildren: own }
+        : {}),
+      ...(thread.boat ? { boatSiblingCount: siblings?.open ?? 0 } : {}),
+    };
+  });
+  return result.length === threads.length &&
+    result.every((thread, index) => thread === threads[index])
+    ? threads
+    : result;
 }
 export function rollupText(
   rollup: NonNullable<SidebarThreadDto["rollup"]>,
 ): string {
   return [
-    [rollup.needsYou, "need you"],
+    [rollup.needsYou, rollup.needsYou === 1 ? "needs you" : "need you"],
     [rollup.stopped, "stopped"],
     [rollup.ready, "ready"],
     [rollup.working, "working"],

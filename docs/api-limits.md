@@ -53,3 +53,11 @@ Exact evidence at the pinned upstream revision:
 - [Host navigation/footer/list separation](https://github.com/get-bb/bb/blob/e003e9510cbfd3bb6c26a28630b46ffb1c242a44/apps/app/src/components/sidebar/AppSidebar.tsx#L225)
   places navigation at225, footer256, list339.
 - [Separate Settings sidebar loader](https://github.com/get-bb/bb/blob/e003e9510cbfd3bb6c26a28630b46ffb1c242a44/apps/app/src/components/settings/LazySettingsSidebar.tsx#L29).
+
+Final audit: all115 pinned upstream paths are present. The public SDK
+distribution scanner reports zero private dependencies and zero violations;
+531 tests across46 files, typecheck and the own-wrapper build pass.
+`build-shots/fidelity/sidebar-final-audit.json` records the exact source commit
+and validation. Generic rollups derive only from public BB threads/activity,
+so disabling or removing Boat preserves the same seven-child behavior.
+No outside-SDK UI fallback or experimental host tweak was introduced.

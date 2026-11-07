@@ -38,10 +38,14 @@ The consumer reads once for the list every 3 seconds in the foreground and
 and retains object identity while revision is unchanged.
 
 Workbench uses Boat nesting and hides shipped tasks and retired reviews from
-this list. At seven open tasks, a group gains a rollup and collapses on its
-first crossing; subsequent user choices persist. These groups sort by
-needs-you, broken, ready, working/review, then idle, retaining BB order inside
-each bucket. Smaller groups retain BB order. Automatic sorting waits while
+this list. Any parent with seven open direct children gains a rollup and
+collapses on its first crossing; subsequent user choices persist. This also
+works with no Boat DTOs: the consumer counts public BB children and working
+activity, e.g. `18 threads · 3 working`. Hidden/archived children are excluded.
+An available Boat summary takes precedence; generic children keep BB order.
+Only authentic Boat statuses contribute urgency: needs-you, broken, ready,
+working/review, then idle, retaining BB order inside each bucket. Smaller
+groups retain BB order. Automatic sorting waits while
 the pointer is over the sidebar or a row has keyboard focus. The generic BB
 list, search and other plugin row signals continue to work. Second lines
 appear for needs-you/broken/ready, a collapsed rollup, and the reviewed

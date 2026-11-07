@@ -190,7 +190,7 @@ export const preferenceDefinitions = {
     "Project ids whose rows are collapsed.",
     null,
   ),
-  rollupSeenThreads: definePreference(stringListSchema, [], "Chats that have crossed the seven-task rollup threshold.", null),
+  rollupSeenThreads: definePreference(stringListSchema, [], "Chats that have crossed the seven-open-child rollup threshold.", null),
   collapsedThreads: definePreference(
     stringListSchema,
     [],

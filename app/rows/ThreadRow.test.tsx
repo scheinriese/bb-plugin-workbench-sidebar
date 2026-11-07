@@ -481,6 +481,41 @@ describe("ThreadRow", () => {
     },
   );
 
+  it.each([true, false])("shows a truthful generic rollup only when collapsed (%s)", (collapsed) => {
+    const toggle = vi.fn();
+    renderThreadRow({
+      thread: Object.assign(createThread({ title: "Docs", displayTitle: "Docs" }), {
+        workbenchChildren: { open: 18, working: 3 },
+      }),
+      options: {
+        kind: "parent", depth: 0, isCompact: false, isCollapsed: collapsed,
+        childCount: 18, childActivity: NO_COLLAPSED_CHILD_ACTIVITY,
+        onToggleCollapsed: toggle,
+      },
+    });
+    expect(screen.queryByText("18 threads · 3 working") !== null).toBe(collapsed);
+    const button = screen.getByRole("button", { name: `${collapsed ? "Expand" : "Collapse"} Docs threads` });
+    fireEvent.click(button);
+    expect(toggle).toHaveBeenCalledOnce();
+    expect(document.querySelector<HTMLElement>(".wb-row")?.style.height).toBe(collapsed ? "42px" : "28px");
+  });
+
+  it("retains the phone disclosure for a nested generic rollup", () => {
+    renderThreadRow({
+      thread: Object.assign(createThread({ title: "Docs", displayTitle: "Docs" }), {
+        workbenchChildren: { open: 7, working: 0 },
+      }),
+      isCompactViewport: true,
+      options: {
+        kind: "parent", depth: 1, isCompact: true, isCollapsed: true,
+        childCount: 7, childActivity: NO_COLLAPSED_CHILD_ACTIVITY,
+        onToggleCollapsed: vi.fn(),
+      },
+    });
+    expect(screen.getByText("7 threads")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Expand Docs threads" })).toBeTruthy();
+  });
+
   it.each([
     ["meta", { metaKey: true }],
     ["ctrl", { ctrlKey: true }],

@@ -30,6 +30,18 @@ describe("Owner-confirmed many-task policy", () => {
     expect(firstRollupCrossings(threads, [])).toEqual(["parent"]);
     expect(firstRollupCrossings(threads, ["parent"])).toEqual([]);
   });
+  it("uses the same first-crossing rule for generic parents, excluding hidden and archived children", () => {
+    const children = Array.from({ length: 7 }, (_, i) => makeSidebarThread({
+      id: `native-${i}`, parentThreadId: "generic-parent",
+    }));
+    const inactive = [
+      makeSidebarThread({ id: "archived", parentThreadId: "generic-parent", archivedAt: 1 }),
+      makeSidebarThread({ id: "hidden", parentThreadId: "generic-parent", isHidden: true }),
+    ];
+    expect(firstRollupCrossings([...children.slice(0, 6), ...inactive], [])).toEqual([]);
+    expect(firstRollupCrossings([...children, ...inactive], [])).toEqual(["generic-parent"]);
+    expect(firstRollupCrossings(children, ["generic-parent"])).toEqual([]);
+  });
   it("keeps working and review in the same stable BB ordering bucket", () => {
     const a = task("a"),
       b = task("b");
