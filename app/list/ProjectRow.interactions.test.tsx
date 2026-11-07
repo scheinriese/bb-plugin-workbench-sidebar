@@ -23,6 +23,8 @@ import {
 import type { SectionThreadDndState } from "../dnd/useSectionThreadDnd.js";
 import type { ProjectThreadListState } from "./ProjectRow.js";
 import { buildPinnedSidebarState } from "../model/pinned-sidebar-threads.js";
+import { applyBoatState } from "../workbench/presentation.js";
+import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
 import { buildSidebarEntitySectionId } from "../model/sidebar-section-order.js";
 import {
   makeSidebarEnvironment,
@@ -340,6 +342,36 @@ const ENVIRONMENT_THREADS = [
 ];
 
 describe("ProjectRow interactions", () => {
+  it.each([
+    { open: 2, shipped: 1, collapsed: false, shown: false },
+    { open: 6, shipped: 1, collapsed: false, shown: false },
+    { open: 7, shipped: 1, collapsed: false, shown: true },
+    { open: 8, shipped: 1, collapsed: false, shown: true },
+    { open: 7, shipped: 0, collapsed: false, shown: false },
+    { open: 7, shipped: 1, collapsed: true, shown: false },
+  ])("shows shipped receipts only in expanded rollup groups ($open open, $shipped shipped, collapsed $collapsed)", ({ open, shipped, collapsed, shown }) => {
+    const parent = makeThread({ id: "thr_parent", title: "Parent", pinnedAt: 1 });
+    const children = Array.from({ length: open }, (_, index) =>
+      makeThread({ id: `thr_child_${index}`, title: `Child ${index}`, parentThreadId: parent.id }),
+    );
+    const state: SidebarThreadDto = {
+      threadId: parent.id, role: "chat", status: "working", provider: null,
+      secondLine: null, parentThreadId: null, createdFor: null, listedIn: null,
+      hidden: false, updatedAt: "2026-11-07T19:54:00Z",
+      rollup: { needsYou: 0, stopped: 0, ready: 0, working: 0, shippedToday: shipped },
+    };
+    const threads = applyBoatState([parent, ...children], new Map([[parent.id, state]]));
+    const node = buildPinnedSidebarState({ threads }).rootNodes[0]!;
+    renderTree(<ThreadTreeNodeRow
+      projectId="proj_test" node={node} depthOffset={0} isEnvGrouped={false}
+      collapsedThreadIds={collapsed ? new Set([parent.id]) : new Set()}
+      collapsedEnvironmentIds={new Set()} onToggleThreadCollapsed={vi.fn()}
+      onToggleEnvironmentCollapsed={vi.fn()}
+    />, { threads });
+    expect(screen.queryByText(`${shipped} shipped today`) !== null).toBe(shown);
+    if (!collapsed) expect(screen.getByText("Child 0")).toBeTruthy();
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();

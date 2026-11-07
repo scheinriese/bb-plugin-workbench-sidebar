@@ -5,6 +5,7 @@ import {
 import { useQueuedStarts } from "../workbench/BoatState.js";
 import { QueuedStartRow } from "../workbench/QueuedStartRow.js";
 import { queueRequestOrder, partitionQueuedChildren } from "../workbench/queued-starts.js";
+import { MANY_TASKS_THRESHOLD } from "../workbench/presentation.js";
 import {
   ThreadListVisibility,
   ThreadListMore,
@@ -1647,7 +1648,9 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               /> : <QueuedStartRow row={request} depth={parentRowDepth + 1} onNavigate={onProjectSelect} />}
             </Fragment>;
           }) : null}
-          {showChildren && (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? (
+          {showChildren &&
+          (node.thread.workbenchChildren?.open ?? 0) >= MANY_TASKS_THRESHOLD &&
+          (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? (
             <a
               className="wb-shipped-link"
               style={{ paddingLeft: 34 + parentRowDepth * 24 }}
