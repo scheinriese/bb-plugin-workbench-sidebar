@@ -3,3 +3,5 @@ dist/
 upstream/
 fidelity-work/
 build-shots/
+
+docs/integration-demo.md
