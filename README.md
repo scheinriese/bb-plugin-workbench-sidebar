@@ -8,6 +8,12 @@ Workbench preserves bb's thread-list features: projects and sections,
 drafts, search, keyboard navigation, rename, archive and Undo, context menus,
 shortcuts and split drag. It works on desktop and phone.
 
+[![Watch the Workbench sidebar demo](docs/demos/workbench-v1-poster.jpg)](docs/demos/workbench-v1.mp4)
+
+[Watch the Workbench demo](docs/demos/workbench-v1.mp4): nested reviews
+and pinning, paired with Boat. Captions and focus outlines guide the
+recording; the UI uses staged demo data.
+
 ## What it adds
 
 - Provider marks with a ring while work is running.
