@@ -10,7 +10,7 @@
   },
   "bb": {
     "name": "Workbench sidebar",
-    "description": "A full fork of bb’s thread list with provider activity rings and Boat work trees.",
+    "description": "A full fork of bb\u2019s thread list with provider activity rings and Boat work trees.",
     "branding": {
       "icon": "ListView"
     },
@@ -67,5 +67,14 @@
     "typescript": "^6.0.2",
     "vitest": "^4.1.1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "author": {
+    "name": "scheinriese",
+    "url": "https://github.com/scheinriese"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scheinriese/bb-plugin-workbench-sidebar.git"
+  },
+  "homepage": "https://github.com/scheinriese/bb-plugin-workbench-sidebar#readme"
 }

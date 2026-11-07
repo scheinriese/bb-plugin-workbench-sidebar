@@ -28,6 +28,22 @@ recording; the UI uses staged demo data.
 - With Boat, queued requests stay visible before a task chat exists. Start
   now opens its paid-start confirmation; Cancel affects only that request.
 
+## Screenshots
+
+The examples use staged demo data. Boat is optional.
+
+<table>
+<tr><th>Nested tasks and reviews</th><th>A larger work group</th></tr>
+<tr><td><img src="docs/screenshots/nested.png" width="320" alt="Nested tasks, italic review rows and status signals"></td><td><img src="docs/screenshots/rollup.png" width="320" alt="Expanded rollup with urgent work first and shipped work last"></td></tr>
+</table>
+
+<details>
+<summary>Phone sidebar</summary>
+
+<img src="docs/screenshots/phone.png" width="280" alt="Phone sidebar with pinned section and parent rows">
+
+</details>
+
 ## Works well with Boat Cloud Agents
 
 [Boat Cloud Agents](https://github.com/scheinriese/bb-plugin-boat) starts and
@@ -38,10 +54,10 @@ The pairing is optional. Workbench uses ordinary bb data without Boat;
 Boat works with bb's regular sidebar. Workbench reads Boat's versioned
 sidebar contract and degrades quietly if it is unavailable.
 
-## Try the local build
+## Install
 
 ```sh
-bb plugin install /path/to/bb-plugin-workbench-sidebar
+bb plugin install https://github.com/scheinriese/bb-plugin-workbench-sidebar
 ```
 
 The sidebar slot activates when the plugin is enabled. Restore bb's regular
@@ -51,7 +67,9 @@ list with:
 bb plugin disable workbench-sidebar
 ```
 
-This checkout is prepared for review; publication is a separate step.
+Your existing chats and sections remain bb core data. Workbench keeps its
+own layout preferences; disabling it restores the native list without deleting
+its preferences.
 
 ## Compatibility and development
 
@@ -70,3 +88,12 @@ npm run build
 
 The preference CLI is `bb workbench-sidebar prefs …`. No account, inference
 service or cloud sandbox is required by Workbench itself.
+
+## Security and license
+
+Workbench runs as a full-trust bb plugin. It needs no account, inference
+service or cloud sandbox of its own. Read [SECURITY.md](SECURITY.md) for its
+storage and optional Boat actions.
+
+MIT. The upstream bb thread-list copyright and license are preserved; see
+[LICENSE](LICENSE) and [upstream attribution](docs/upstream.md).

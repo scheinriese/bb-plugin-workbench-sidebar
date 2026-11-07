@@ -38,4 +38,4 @@ customization; client/server preference sync, migrations and CLI management.
    feature and Paper comparison checks before changing the compatibility range.
 6. Update this revision, attribution, feature inventory and API limits together.
 
-No remote is configured in this repository. No publishing is authorized.
+The standalone source is published at https://github.com/scheinriese/bb-plugin-workbench-sidebar.

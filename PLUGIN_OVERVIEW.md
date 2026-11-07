@@ -1,17 +1,27 @@
-The sidebar thread list, as a plugin.
+## Keep the work you follow together
 
-## What you get
+A sidebar with provider activity rings, quiet unread signals, nested chats and
+reviews, and section and parent headers that stay visible while you scroll.
+Groups with seven or more open children collapse on first use, then remember
+your choice. Ordering waits while your pointer or keyboard focus is in the list.
 
-- **Pinned** and **Threads** sections, plus the custom sections you create.
-- Organize by project, by machine, or chronologically, with sort by updated, created, or title.
-- Nested child threads, worktree grouping, drag to reorder, pin, nest, and move between sections.
-- Inline rename, keyboard jump shortcuts, and the same status glyphs bb draws elsewhere.
-- Agent provider icons before thread titles, controlled by Organize → Rows → Provider icons.
-- A metadata line under thread titles where plugins show details such as the pull request number, controlled by Organize → Rows → Metadata while the Thread row metadata experiment is on.
-- Unread threads listed above read ones, controlled by Organize → Groups → By read status.
+Workbench retains bb’s projects and sections, drafts, search, keyboard
+navigation, rename, archive and Undo, context menus and split drag. It works
+on desktop and phone.
 
-## How it works
+## Optional Boat integration
 
-The plugin reads bb's live thread view through the plugin SDK and stores your layout choices (organization, sort, section order, collapsed groups) in its own storage, synced to every open window. Sections and thread moves go through bb's public API, so `bb thread section` and this list always agree.
+With Boat Cloud Agents, see tasks, reviews, ready changes and queued requests
+under their source chat. Start now opens Boat’s paid-start confirmation;
+Cancel affects only the waiting request. A task chat replaces its waiting row
+in the same place. Boat is optional; the ordinary bb list works without it.
 
-Disable the plugin to hide the list; another thread-list plugin can take its place under Settings → Appearance.
+## Requirements and trust
+
+Supports bb 0.48.1 and Plugin SDK 0.6.104. This is a full-trust fork of bb’s
+MIT-licensed thread-list plugin, with attribution retained. It uses public
+SDK storage and UI APIs and requires no inference service or cloud sandbox.
+Disabling Workbench restores bb’s native list.
+
+Source and demo: https://github.com/scheinriese/bb-plugin-workbench-sidebar.
+Boat: https://github.com/scheinriese/bb-plugin-boat.
