@@ -13,8 +13,7 @@ export function useSidebarContentElement(
   const [element, setElement] = React.useState<HTMLElement | null>(null);
   React.useLayoutEffect(() => {
     const next =
-      anchorRef.current?.closest<HTMLElement>(SIDEBAR_CONTENT_SELECTOR) ??
-      null;
+      anchorRef.current?.closest<HTMLElement>(SIDEBAR_CONTENT_SELECTOR) ?? null;
     setElement((current) => (current === next ? current : next));
   }, [anchorRef]);
   return element;
@@ -77,6 +76,57 @@ export const SidebarStickyTier = React.forwardRef<
   HTMLDivElement,
   SidebarStickyTierProps
 >(({ children, className, tier, level, style, ...props }, ref) => {
+  const ownRef = React.useRef<HTMLDivElement>(null);
+  const sentinelRef = React.useRef<HTMLSpanElement>(null);
+  const [pinned, setPinned] = React.useState(false);
+  const setRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      ownRef.current = node;
+      if (typeof ref === "function") return ref(node);
+      if (ref) ref.current = node;
+    },
+    [ref],
+  );
+  React.useLayoutEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const own = ownRef.current,
+        sentinel = sentinelRef.current;
+      if (own && sentinel)
+        setPinned(
+          sentinel.getBoundingClientRect().top <
+            own.getBoundingClientRect().top - 0.5,
+        );
+    };
+    const schedule = () => {
+      if (!frame)
+        frame = window.requestAnimationFrame
+          ? window.requestAnimationFrame(measure)
+          : window.setTimeout(measure, 0);
+    };
+    measure();
+    // Observe our own boxes. The event source's DOM and styles are never read.
+    window.addEventListener("scroll", schedule, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", schedule);
+    const observer =
+      typeof ResizeObserver === "function"
+        ? new ResizeObserver(schedule)
+        : null;
+    if (ownRef.current) observer?.observe(ownRef.current);
+    return () => {
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+      observer?.disconnect();
+      if (frame) {
+        if (window.cancelAnimationFrame) window.cancelAnimationFrame(frame);
+        else window.clearTimeout(frame);
+      }
+    };
+  }, []);
   const tierStyle =
     tier === "parent" && level !== undefined
       ? ({
@@ -85,20 +135,28 @@ export const SidebarStickyTier = React.forwardRef<
         } satisfies SidebarStickyParentLevelStyle)
       : style;
   return (
-    <div
-      ref={ref}
-      {...props}
-      style={tierStyle}
-      data-sidebar={tier === "label" ? "group-label" : undefined}
-      data-sidebar-sticky-tier={tier}
-      className={cn(
-        tier === "label" && SIDEBAR_GROUP_LABEL_BASE_CLASS,
-        "bg-sidebar",
-        className,
-      )}
-    >
-      {children}
-    </div>
+    <>
+      <span
+        ref={sentinelRef}
+        className="wb-sticky-sentinel"
+        aria-hidden="true"
+      />
+      <div
+        ref={setRef}
+        {...props}
+        style={tierStyle}
+        data-sidebar={tier === "label" ? "group-label" : undefined}
+        data-sidebar-sticky-tier={tier}
+        data-workbench-pinned={pinned ? "true" : undefined}
+        className={cn(
+          tier === "label" && SIDEBAR_GROUP_LABEL_BASE_CLASS,
+          "bg-sidebar",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </>
   );
 });
 SidebarStickyTier.displayName = "SidebarStickyTier";

@@ -43,6 +43,7 @@ import {
 } from "../preferences/atoms.js";
 import { SidebarProjectsContext } from "../model/use-sidebar-data.js";
 import type { ThreadRowOptions } from "./ThreadRow.js";
+import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
 import {
   preferenceValueAtom,
   resetPreferencesSyncForTest,
@@ -53,12 +54,15 @@ import {
 } from "../list/customizeRowActionsContext.js";
 
 installTestPluginRuntime();
-const { SidebarDraftPresenceSync } =
-  await import("../list/sidebarDraftPresence.js");
-const { ThreadRowNavigationProvider } =
-  await import("./threadRowNavigation.js");
-const { ThreadSelectionProvider } =
-  await import("../selection/threadSelection.js");
+const { SidebarDraftPresenceSync } = await import(
+  "../list/sidebarDraftPresence.js"
+);
+const { ThreadRowNavigationProvider } = await import(
+  "./threadRowNavigation.js"
+);
+const { ThreadSelectionProvider } = await import(
+  "../selection/threadSelection.js"
+);
 const {
   resetSidebarTitleDoubleClickForTest,
   SidebarProvidersContext,
@@ -941,7 +945,9 @@ describe("ThreadRow", () => {
 
     const draftGlyph = statusGlyph();
     expect(draftGlyph.getAttribute("data-workbench-indicator")).toBe("draft");
-    expect(draftGlyph.querySelector('path[d="M8.2 1.8l2 2L4 10H2V8l6.2-6.2z"]')).not.toBeNull();
+    expect(
+      draftGlyph.querySelector('path[d="M8.2 1.8l2 2L4 10H2V8l6.2-6.2z"]'),
+    ).not.toBeNull();
     expect(
       draftGlyph.closest("[data-sidebar-thread-trailing-indicator]"),
     ).not.toBeNull();
@@ -1269,7 +1275,9 @@ describe("ThreadRow", () => {
 
   it("draws other plugins' metadata only while Metadata is on", () => {
     const slot = renderThreadRow({ experiments: ["threadRowMetadata"] });
-    expect(slot.container.querySelector("[data-thread-row-metadata]")).toBeNull();
+    expect(
+      slot.container.querySelector("[data-thread-row-metadata]"),
+    ).toBeNull();
 
     act(() => getDefaultStore().set(sidebarShowRowMetadataAtom, true));
     expect(
@@ -1280,7 +1288,9 @@ describe("ThreadRow", () => {
   it("ignores the Metadata preference while its experiment is off", () => {
     getDefaultStore().set(sidebarShowRowMetadataAtom, true);
     const slot = renderThreadRow();
-    expect(slot.container.querySelector("[data-thread-row-metadata]")).toBeNull();
+    expect(
+      slot.container.querySelector("[data-thread-row-metadata]"),
+    ).toBeNull();
   });
 
   it("routes a click on other plugins' metadata like the rest of the row", () => {
@@ -1438,7 +1448,8 @@ describe("ThreadRow", () => {
     renderThreadRow({
       thread: createThread({
         activity: activity({ workflows: 1 }),
-        lastReadAt: 1, latestAttentionAt: 1,
+        lastReadAt: 1,
+        latestAttentionAt: 1,
       }),
     });
 
@@ -1462,7 +1473,8 @@ describe("ThreadRow", () => {
       renderThreadRow({
         thread: createThread({
           activity: activity({ [activityKey]: 1 }),
-          lastReadAt: 1, latestAttentionAt: 1,
+          lastReadAt: 1,
+          latestAttentionAt: 1,
         }),
       });
 
@@ -1478,7 +1490,8 @@ describe("ThreadRow", () => {
           backgroundAgents: 1,
           backgroundCommands: 1,
         }),
-        lastReadAt: 1, latestAttentionAt: 1,
+        lastReadAt: 1,
+        latestAttentionAt: 1,
       }),
     });
 
@@ -1489,7 +1502,8 @@ describe("ThreadRow", () => {
     renderThreadRow({
       thread: createThread({
         activity: activity({ backgroundAgents: 1, backgroundCommands: 1 }),
-        lastReadAt: 1, latestAttentionAt: 1,
+        lastReadAt: 1,
+        latestAttentionAt: 1,
       }),
     });
 
@@ -1598,6 +1612,32 @@ describe("ThreadRow", () => {
     });
 
     expect(renderedIndicators()).toEqual(["unread-success"]);
+  });
+
+  it("keeps unread news on nested Boat tasks while preserving native child behavior", () => {
+    const child = createThread({
+      parentThreadId: "thr_parent",
+      isUnread: true,
+    });
+    const slot = renderThreadRow({ thread: child });
+    expect(screen.queryByRole("img", { name: "Unread news" })).toBeNull();
+    const boat: SidebarThreadDto = {
+      threadId: child.id,
+      role: "task",
+      status: "ready",
+      provider: "claude",
+      secondLine: { text: "Ready to ship to main", tone: "success" },
+      parentThreadId: "thr_parent",
+      rollup: null,
+      createdFor: null,
+      listedIn: "thr_parent",
+      hidden: false,
+      updatedAt: "2026-11-07T19:44:00Z",
+    };
+    slot.rerenderThreadRow(Object.assign({}, child, { boat }));
+    expect(screen.getByRole("img", { name: "Unread news" })).toBeTruthy();
+    slot.rerenderThreadRow(Object.assign({}, child, { boat, isUnread: false }));
+    expect(screen.queryByRole("img", { name: "Unread news" })).toBeNull();
   });
 
   it("switches directly from working to unread success after finishing", () => {

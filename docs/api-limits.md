@@ -18,9 +18,28 @@ fallback is currently needed.
 - Standard upstream CSS provides sticky tiers using public rendered component
   attributes. Our scoped row CSS must preserve sticky positioning and override
   per-stack geometry; the first live capture revealed/fixed this interaction.
-- Numeric automatic many-task collapse threshold is not specified in the
-  handoff artboards. Existing manual collapse remains fully functional and
-  shows the exact rollup. Do not invent a threshold before design review.
 - Exact sidebar geometry overrides old upstream padding assertions. The full
   upstream interaction and model tests remain; rendering assertions now check
   Workbench's pencil/dots/ring and10/34/58 padding.
+
+Owner-confirmed ordering (updated sidebar-spec.md):7or more open tasks
+triggers automatic first collapse, then persists the user's choice. Basic
+groups keep BB order; rollup groups use urgency with stable BB order inside
+buckets. Pointer or keyboard interaction freezes auto-ordering until release.
+
+The SDK thread-list slot only supplies the sidebar scroll area, not navigation,
+header, footer or the Settings route's separate sidebar. Source evidence at the
+pinned upstream revision: apps/app/src/components/sidebar/PluginThreadList.tsx
+and apps/app/src/components/settings/LazySettingsSidebar.tsx. Native footer
+usage pills and OS browser/status chrome are outside this plugin's slot.
+
+The global thread-action registry remains shared while the builtin list is
+enabled. A live smoke check found duplicate Move entries. Workbench now reads
+the builtin's public preference RPC and reuses its live chronological Move
+action, retaining the full forked fallback when absent. No foreign settings
+are changed. Static quick-action choices retain provider-qualified names.
+
+The screenshot API returns JPEG payloads even under .png filenames; its
+schema offers no format field. Read-only Paper export with explicit1xPNG
+removes this compression for final reference images. Existing user downloads
+are checked before export, and references are copied into this repo.

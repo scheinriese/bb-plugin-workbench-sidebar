@@ -247,7 +247,8 @@ interface ChronologicalBuiltInSidebarSections {
   threads: Omit<BuiltInSidebarSectionOptions, "content">;
 }
 
-interface ChronologicalSectionThreadSectionsProps extends SectionThreadTreeProps {
+interface ChronologicalSectionThreadSectionsProps
+  extends SectionThreadTreeProps {
   builtInSections: ChronologicalBuiltInSidebarSections;
   onCreateThread?: () => void;
   topLevelSectionOrder: readonly SidebarSectionId[];
@@ -268,7 +269,7 @@ type ProjectThreadListClickCaptureHandler = MouseEventHandler<HTMLDivElement>;
 const EMPTY_PROJECT_THREADS: SidebarThread[] = [];
 const EMPTY_PINNED_ROOT_NODES: readonly ProjectThreadNode[] = [];
 const EMPTY_THREAD_SECTIONS: readonly SidebarSectionDefinition[] = [];
-const PROJECT_THREAD_TREE_EMPTY_STATE_CLASS = "py-0.5 px-2";
+const PROJECT_THREAD_TREE_EMPTY_STATE_CLASS = "py-0.5 px-3";
 
 interface ProjectThreadTreeGroupProps {
   children: ReactNode;
@@ -483,7 +484,7 @@ function getThreadNodeStickyLevel({
   node,
 }: GetThreadNodeStickyLevelArgs): number | undefined {
   const level = node.depth + depthOffset;
-  return level < SIDEBAR_STICKY_PARENT_DEPTH_CAP ? level : undefined;
+  return level === 0 ? 0 : undefined;
 }
 
 function ThreadTreeGroupLine({ parentRowDepth }: ThreadTreeGroupLineProps) {
@@ -1626,7 +1627,16 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               }}
             />
           ) : null}
-          {showChildren && (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? <a className="wb-shipped-link" style={{paddingLeft:34 + parentRowDepth*24}} href={node.thread.href} onClick={onProjectSelect}>{node.thread.boat!.rollup!.shippedToday} shipped today →</a> : null}
+          {showChildren && (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? (
+            <a
+              className="wb-shipped-link"
+              style={{ paddingLeft: 34 + parentRowDepth * 24 }}
+              href={node.thread.href}
+              onClick={onProjectSelect}
+            >
+              {node.thread.boat!.rollup!.shippedToday} shipped today →
+            </a>
+          ) : null}
           {nestPreviewThread !== null && nestPreviewBeforeKey === null ? (
             <NestDropPreviewRow
               depth={parentRowDepth + 1}
@@ -1861,6 +1871,7 @@ export const ProjectThreadTree = memo(function ProjectThreadTree({
   if (rootItems.length === 0) {
     return (
       <ThreadListEmptyState
+        showIcon={false}
         message={
           threadListState.status === "unavailable"
             ? "Threads unavailable"
@@ -1984,6 +1995,7 @@ export const ChronologicalSectionThreadSections = memo(
 
     const looseEmptyState = (
       <ThreadListEmptyState
+        showIcon={false}
         message={
           threadListState.status === "unavailable"
             ? "Threads unavailable"

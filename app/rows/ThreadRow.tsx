@@ -1,6 +1,10 @@
 import { useBoatState } from "../workbench/BoatState.js";
 import { useNewThreadSignals } from "../workbench/SeenThreads.js";
-import { ProviderActivity, DotSlot, useNewsShimmer } from "../workbench/RowSignals.js";
+import {
+  ProviderActivity,
+  DotSlot,
+  useNewsShimmer,
+} from "../workbench/RowSignals.js";
 import { secondLineFor, rowGeometry } from "../workbench/presentation.js";
 import {
   memo,
@@ -405,9 +409,17 @@ function ThreadRowComponent({
   const showRowMetadata =
     useAtomValue(sidebarShowRowMetadataAtom) && rowMetadataEnabled;
   const providers = useContext(SidebarProvidersContext);
-  const provider = showProviderIcons || thread.boat
-    ? providers.find((candidate) => candidate.id === thread.providerId)
-    : undefined;
+  const providerId =
+    thread.boat?.provider === "codex"
+      ? "codex"
+      : thread.boat?.provider === "claude"
+        ? "claude-code"
+        : thread.providerId;
+  const provider =
+    showProviderIcons || thread.boat
+      ? (providers.find((candidate) => candidate.id === providerId) ??
+        providers.find((candidate) => candidate.id === thread.providerId))
+      : undefined;
   const shortcut = useSidebarThreadShortcut(thread.id);
   const pluginThreadRowStatus = useSidebarThreadRowStatus(thread.id);
   const { hasUnsubmittedDraft: hasComposerDraft } = useSidebarThreadDraft(
@@ -518,6 +530,9 @@ function ThreadRowComponent({
       (hasHiddenChildren && childActivity.unreadError),
     hasUnreadSuccess:
       threadStatus.hasUnreadSuccess ||
+      // Native BB folds child unread state into its parent. Boat's explicit
+      // nested task rows keep their own title-line news dot instead.
+      (thread.boat !== undefined && thread.isUnread) ||
       (hasHiddenChildren && childActivity.unread),
     isBackgroundAgentActive:
       threadStatus.isBackgroundAgentActive ||
@@ -563,13 +578,38 @@ function ThreadRowComponent({
   );
   const isActionsOpen = isDropdownActionsOpen || isContextActionsOpen;
   const boatStates = useBoatState();
-  const { isNew, newChildren } = useNewThreadSignals(thread, boatStates, hasHiddenChildren);
+  const { isNew, newChildren } = useNewThreadSignals(
+    thread,
+    boatStates,
+    hasHiddenChildren,
+  );
   const baseSecondLine = secondLineFor(thread.boat, isParentCollapsed);
-  const secondLine = newChildren > 0 && thread.boat?.role === "orchestrator" ? {text: `${baseSecondLine?.text ?? ""}${baseSecondLine?.text ? " · " : ""}+${newChildren} new`, tone:"neutral"} : baseSecondLine;
-  const workbenchWorking = thread.boat?.role === "orchestrator" ? hasThreadListWorkingActivity(threadStatus) : thread.boat ? ["working", "review"].includes(thread.boat.status) : splitIndicatorIsWorking;
+  const secondLine =
+    newChildren > 0 && thread.boat?.rollup
+      ? {
+          text: `${baseSecondLine?.text ?? ""}${baseSecondLine?.text ? " · " : ""}+${newChildren} new`,
+          tone: "neutral",
+        }
+      : baseSecondLine;
+  const workbenchWorking =
+    thread.boat?.role === "orchestrator" ||
+    (thread.boat?.role === "chat" && thread.boat.rollup)
+      ? hasThreadListWorkingActivity(threadStatus)
+      : thread.boat
+        ? ["working", "review"].includes(thread.boat.status) &&
+          thread.boat.moving !== false
+        : splitIndicatorIsWorking;
   const isReview = thread.boat?.role === "review";
-  const newsShimmer = useNewsShimmer(thread.id, thread.isUnread, thread.latestAttentionAt);
-  const geometry = rowGeometry(options.depth, isCompactViewport, secondLine !== null);
+  const newsShimmer = useNewsShimmer(
+    thread.id,
+    thread.isUnread && !isNew,
+    thread.latestAttentionAt,
+  );
+  const geometry = rowGeometry(
+    options.depth,
+    isCompactViewport,
+    secondLine !== null,
+  );
   const rowClassName = cn(
     "wb-row",
     isNew && "wb-row-new",
@@ -598,8 +638,14 @@ function ThreadRowComponent({
     reorderPlacement && REORDER_PLACEMENT_CLASS[reorderPlacement],
     isCustomizingActions && "bg-sidebar-accent",
   );
-  const rowStyle = { ...getThreadRowStyle(options.depth), paddingLeft: geometry.paddingLeft, height: geometry.height,
-    "--wb-highlight-left": `${geometry.highlightLeft}px`, "--wb-depth": options.depth } as CSSProperties;
+  const rowStyle = {
+    ...getThreadRowStyle(options.depth),
+    paddingLeft: geometry.paddingLeft,
+    height: geometry.height,
+    "--wb-highlight-left": `${geometry.highlightLeft}px`,
+    "--wb-depth": options.depth,
+    "--wb-normal-height": `${geometry.height}px`,
+  } as CSSProperties;
   const parentGuideLeft =
     options.depth > 0 ? getSidebarThreadGroupLineLeft(options.depth - 1) : null;
   const handleRowClickCapture = useCallback<ThreadRowClickCaptureHandler>(
@@ -732,25 +778,54 @@ function ThreadRowComponent({
                 "flex-1",
             )}
           >
-            {showProviderIcons || thread.boat ? <ProviderActivity provider={provider} providerId={thread.providerId} working={workbenchWorking} review={isReview} done={thread.boat?.status === "shipped"}/> : null}
+            {showProviderIcons || thread.boat ? (
+              <ProviderActivity
+                provider={provider}
+                providerId={providerId}
+                working={workbenchWorking}
+                review={isReview}
+                done={thread.boat?.status === "shipped"}
+              />
+            ) : null}
             <span className="wb-text-column">
-            {isEditing ? (
-              <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
-                {editor}
-              </span>
-            ) : (
-              <span
-                className={cn(
-                  "bb-thread-title wb-title",
-                  crossProjectLabel !== null && "min-w-0 truncate",
+              <span className="wb-title-line">
+                {isEditing ? (
+                  <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
+                    {editor}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      "bb-thread-title wb-title",
+                      crossProjectLabel !== null && "min-w-0 truncate",
+                    )}
+                    title={labelTitle}
+                    onDoubleClick={startTitleEditing}
+                  >
+                    {isReview ? (
+                      `${thread.boat?.provider === "claude" ? "Claude" : "Codex"} reviewing…`
+                    ) : (
+                      <ThreadTitle threadId={thread.id} />
+                    )}
+                  </span>
                 )}
-                title={labelTitle}
-                onDoubleClick={startTitleEditing}
-              >
-                {isReview ? `${thread.boat?.provider === "claude" ? "Claude" : "Codex"} reviewing…` : <ThreadTitle threadId={thread.id} />}
+                {parentOptions && hasChildren ? (
+                  <SidebarChildToggleChevron
+                    disabled={isEditing}
+                    className={isEditing ? "hidden" : "wb-disclosure"}
+                    isCollapsed={isParentCollapsed}
+                    expandLabel={`Expand ${labelTitle} threads`}
+                    collapseLabel={`Collapse ${labelTitle} threads`}
+                    onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
+                    revealOnHover={!isParentCollapsed}
+                  />
+                ) : null}
               </span>
-            )}
-            {secondLine && !isEditing && <span className="wb-second-line" data-tone={secondLine.tone}>{secondLine.text}</span>}
+              {secondLine && !isEditing && (
+                <span className="wb-second-line" data-tone={secondLine.tone}>
+                  {secondLine.text}
+                </span>
+              )}
             </span>
           </span>
           {crossProjectLabel !== null ? (
@@ -772,17 +847,6 @@ function ThreadRowComponent({
               </TooltipTrigger>
               <TooltipContent side="top">{crossProjectLabel}</TooltipContent>
             </Tooltip>
-          ) : null}
-          {parentOptions && hasChildren ? (
-            <SidebarChildToggleChevron
-              disabled={isEditing}
-              className={isEditing ? "hidden" : undefined}
-              isCollapsed={isParentCollapsed}
-              expandLabel={`Expand ${labelTitle} threads`}
-              collapseLabel={`Collapse ${labelTitle} threads`}
-              onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
-              revealOnHover={!isParentCollapsed}
-            />
           ) : null}
         </span>
         {!showRowMetadata || isEditing || isCustomizingActions ? null : (
@@ -885,8 +949,13 @@ function ThreadRowComponent({
                     />
                   </span>
                 ) : (
-                  <DotSlot boat={thread.boat} state={trailingIndicatorState} rowStatus={pluginThreadRowStatus} collapsed={hasHiddenChildren} isNew={isNew}/>
-
+                  <DotSlot
+                    boat={thread.boat}
+                    state={trailingIndicatorState}
+                    rowStatus={pluginThreadRowStatus}
+                    collapsed={hasHiddenChildren}
+                    isNew={isNew}
+                  />
                 )}
               </span>
               <div

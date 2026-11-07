@@ -205,7 +205,8 @@ export default async function threadListPlugin(bb: BbPluginApi) {
   bb.rpc.register(threadListRpcContract, {
     async seenThreads() { return {threadIds:await readSeen()}; },
     async markThreadsSeen({threadIds}) {
-      const write = seenWrite.then(async()=>{ const ids=new Set(await readSeen()); for(const id of threadIds){ids.delete(id);ids.add(id);} const bounded=[...ids].slice(-10_000); while(Buffer.byteLength(JSON.stringify(bounded),"utf8") > 200_000) bounded.shift(); await bb.storage.kv.set("workbench:seenThreads:v1",bounded); });
+      const write = seenWrite.then(async()=>{ const ids=new Set(await readSeen()); for(const id of threadIds){ids.delete(id);ids.add(id);} const bounded:string[]=[]; let bytes=2;
+        for(const id of [...ids].reverse()){const size=Buffer.byteLength(JSON.stringify(id),"utf8")+(bounded.length?1:0);if(bytes+size>200_000||bounded.length>=10_000)break;bounded.push(id);bytes+=size;} bounded.reverse(); await bb.storage.kv.set("workbench:seenThreads:v1",bounded); });
       seenWrite=write.catch(()=>{}); await write; return null;
     },
     async listPreferences() {

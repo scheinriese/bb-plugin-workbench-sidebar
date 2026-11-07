@@ -44,14 +44,17 @@ const {
   PinnedEnvironmentThreadGroupRow,
   ThreadTreeNodeRow,
 } = await import("./ProjectRow.js");
-const { ThreadCreationPlacementScope } =
-  await import("./ThreadCreationPlacement.js");
-const { useSidebarModeSectionOrder } =
-  await import("./useSidebarModeSectionOrder.js");
+const { ThreadCreationPlacementScope } = await import(
+  "./ThreadCreationPlacement.js"
+);
+const { useSidebarModeSectionOrder } = await import(
+  "./useSidebarModeSectionOrder.js"
+);
 const { SidebarHeaderControls } = await import("./SidebarHeaderControls.js");
 const { SidebarDraftPresenceSync } = await import("./sidebarDraftPresence.js");
-const { ThreadListVisibilityMenuItems } =
-  await import("./ThreadListVisibility.js");
+const { ThreadListVisibilityMenuItems } = await import(
+  "./ThreadListVisibility.js"
+);
 
 function makeThread(overrides: SidebarThreadOverrides = {}): SidebarThread {
   return makeSidebarThread({
@@ -590,13 +593,14 @@ describe("ProjectRow interactions", () => {
       '[data-sidebar-thread-id="thr_child_a"]',
     );
     const guide = group?.querySelector<HTMLElement>(
-      ":scope > div.relative > span.bg-border-hairline",
+      ":scope > div.wb-tree-stack > span.wb-tree-guide",
     );
 
     expect(
       container.querySelector('[data-sidebar-thread-id="thr_parent"]'),
     ).not.toBeNull();
     expect(header?.style.paddingLeft).toBe("34px");
+    expect(header?.hasAttribute("data-sidebar-sticky-tier")).toBe(false);
     expect(guide?.style.left).toBe("43px");
     expect(
       child?.closest<HTMLElement>(".bb-sidebar-hover-actions-row")?.style

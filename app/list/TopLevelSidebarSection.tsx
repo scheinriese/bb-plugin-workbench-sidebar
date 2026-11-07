@@ -296,7 +296,7 @@ export function TopLevelSidebarSection({
         ) : null}
       </SidebarStickyTier>
       {collapseControl?.isCollapsed || children == null ? null : (
-        <div className="mt-1">{children}</div>
+        <div className="wb-section-content">{children}</div>
       )}
     </SidebarStickyGroup>
   );

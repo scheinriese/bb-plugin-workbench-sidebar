@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { z } from "zod";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import {
   experimental_THREAD_ACTION_GROUPS,
   experimental_useSidebarThreads,
+  experimental_useThreadActionRegistrations,
+  useSdk,
   type PluginBrowserBbSdk,
   type PluginThreadActionRegistration,
   type PluginThreadActionTarget,
@@ -49,15 +52,59 @@ function choiceId(sectionId: string | null): string {
   return sectionId ?? THREADS_CHOICE_ID;
 }
 
+/** The builtin can remain enabled behind an exclusive replacement. Reuse its
+ * Move action when it is live, and keep our complete fallback when absent. */
+function useBuiltInMoveAction(): boolean {
+  const sdk = useSdk();
+  const registrations = experimental_useThreadActionRegistrations();
+  const present = registrations.some(
+    (action) => action.key === "thread-list/move",
+  );
+  const [chronological, setChronological] = useState(false);
+  useEffect(() => {
+    if (!present) {
+      setChronological(false);
+      return;
+    }
+    let disposed = false;
+    const refresh = async () => {
+      try {
+        const result = await sdk.plugins.callRpc({
+          pluginId: "thread-list",
+          method: "listPreferences",
+          input: null,
+          outputSchema: z.object({
+            preferences: z.object({ organizationMode: z.string() }),
+          }),
+        });
+        if (!disposed)
+          setChronological(
+            result.preferences.organizationMode === "chronological",
+          );
+      } catch {
+        if (!disposed) setChronological(false);
+      }
+    };
+    void refresh();
+    const timer = setInterval(refresh, 30_000);
+    return () => {
+      disposed = true;
+      clearInterval(timer);
+    };
+  }, [sdk, present]);
+  return present && chronological;
+}
+
 export function useMoveDestinations():
   | readonly ThreadSectionMoveDestination[]
   | null {
   usePreferencesSync();
+  const builtInMove = useBuiltInMoveAction();
   const mode = useAtomValue(sidebarOrganizationModeAtom);
   const storedOrder = useAtomValue(sidebarManualSectionOrderAtom);
   const { sections } = experimental_useSidebarThreads();
   const destinations =
-    mode === "chronological"
+    mode === "chronological" && !builtInMove
       ? normalizeSidebarSectionOrder({
           storedOrder,
           entitySectionIds: sections.map((section) =>
@@ -87,7 +134,7 @@ export const moveThreadAction: PluginThreadActionRegistration<
   readonly ThreadSectionMoveDestination[] | null
 > = {
   id: "move",
-  title: "Move to section",
+  title: "Move to section (Workbench)",
   icon: "SectionMove",
   group: experimental_THREAD_ACTION_GROUPS.organize,
   order: 50,

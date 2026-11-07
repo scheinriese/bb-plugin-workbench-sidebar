@@ -1,3 +1,7 @@
+import { useOrderHold, holdComparator } from "../workbench/OrderHold.js";
+import { firstRollupCrossings } from "../workbench/auto-collapse.js";
+import { preferenceValueAtom } from "../preferences/preferences-sync.js";
+import { collapsedThreadIdsAtom } from "../preferences/atoms.js";
 import {
   ThreadListVisibility,
   ThreadListMore,
@@ -498,7 +502,8 @@ function useGroupedModeThreadDnd({
 }
 
 interface ProjectModeSectionsProps
-  extends BuiltInSectionRenderState, GroupedModePinnedProps {
+  extends BuiltInSectionRenderState,
+    GroupedModePinnedProps {
   collapsedEnvironmentIds: Set<string>;
   collapsedThreadIds: Set<string>;
   compareThreads: ThreadComparator;
@@ -927,7 +932,8 @@ function SectionModeSections({
 }
 
 interface MachineModeSectionsProps
-  extends BuiltInSectionRenderState, GroupedModePinnedProps {
+  extends BuiltInSectionRenderState,
+    GroupedModePinnedProps {
   collapsedEnvironmentIds: Set<string>;
   collapsedThreadIds: Set<string>;
   compareThreads: ThreadComparator;
@@ -1551,13 +1557,32 @@ function ProjectListComponent({
   const sortDirection = useAtomValue(sidebarSortDirectionAtom);
   const activeRename = useSidebarRenameState();
   const sortRename = chronologicalSort === "alpha" ? activeRename : null;
+  const heldOrder = useOrderHold();
+  const [rollupSeen, setRollupSeen] = useAtom(
+    preferenceValueAtom("rollupSeenThreads"),
+  );
+  const setRollupCollapsed = useSetAtom(collapsedThreadIdsAtom);
+  useEffect(() => {
+    if (heldOrder || !preferencesReady) return;
+    const ids = firstRollupCrossings(threads, rollupSeen);
+    if (!ids.length) return;
+    setRollupSeen((current) => [...new Set([...current, ...ids])]);
+    setRollupCollapsed((current) => [...new Set([...current, ...ids])]);
+  }, [
+    threads,
+    rollupSeen,
+    heldOrder,
+    preferencesReady,
+    setRollupSeen,
+    setRollupCollapsed,
+  ]);
   const baseThreadComparator = useMemo<ThreadComparator>(
     () =>
       getSidebarThreadComparator(chronologicalSort, sortDirection, sortRename),
     [chronologicalSort, sortDirection, sortRename],
   );
   const {
-    comparator: sidebarThreadComparator,
+    comparator: groupedSidebarThreadComparator,
     collapsedThreadIds,
     toggleThreadCollapsed,
   } = useReadStatusGrouping({
@@ -1565,6 +1590,10 @@ function ProjectListComponent({
     selectedThreadId,
     comparator: baseThreadComparator,
   });
+  const sidebarThreadComparator = useMemo(
+    () => holdComparator(groupedSidebarThreadComparator),
+    [groupedSidebarThreadComparator],
+  );
   const collapsedEnvironmentIds = useMemo(
     () => new Set(collapsedEnvironmentIdList),
     [collapsedEnvironmentIdList],
