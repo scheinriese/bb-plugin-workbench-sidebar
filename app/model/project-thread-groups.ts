@@ -1,3 +1,4 @@
+import { compareBoatUrgency } from "../workbench/presentation.js";
 import { compareCodepoint } from "./compare-codepoint.js";
 import { buildSectionKey } from "./section-keys.js";
 import type { SidebarThread } from "./sidebar-thread.js";
@@ -222,7 +223,7 @@ function buildSortedItems(
   }
 
   if (!groupEnvironmentThreads) {
-    nodes.sort((left, right) => compareThreads(left.thread, right.thread));
+    nodes.sort((left, right) => compareBoatUrgency(left.thread, right.thread) || compareThreads(left.thread, right.thread));
     return nodes.map(buildThreadItem);
   }
 
@@ -475,7 +476,7 @@ function bucketEnvironmentThreadGroups(
     if (!hasAtLeastTwoThreadNodes(bucket)) continue;
     const environmentProviderId =
       providerIdByEnvironmentId.get(environmentId) ?? null;
-    bucket.sort((left, right) => compareThreads(left.thread, right.thread));
+    bucket.sort((left, right) => compareBoatUrgency(left.thread, right.thread) || compareThreads(left.thread, right.thread));
     groupedEnvironmentIds.add(environmentId);
     environmentThreadGroups.push(
       buildEnvironmentThreadGroup(environmentId, environmentProviderId, bucket),
@@ -486,7 +487,7 @@ function bucketEnvironmentThreadGroups(
     const environmentId = node.thread.environment?.id ?? null;
     return environmentId === null || !groupedEnvironmentIds.has(environmentId);
   });
-  looseNodes.sort((left, right) => compareThreads(left.thread, right.thread));
+  looseNodes.sort((left, right) => compareBoatUrgency(left.thread, right.thread) || compareThreads(left.thread, right.thread));
 
   return { environmentThreadGroups, looseNodes };
 }

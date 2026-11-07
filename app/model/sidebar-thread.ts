@@ -1,3 +1,4 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 
-export type SidebarThread = PluginSidebarThread;
+import type { SidebarThreadDto } from "../../shared/boat-sidebar.js";
+export type SidebarThread = PluginSidebarThread & { boat?: SidebarThreadDto };

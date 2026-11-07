@@ -1,3 +1,5 @@
+import { useBoatState } from "../workbench/BoatState.js";
+import { applyBoatState } from "../workbench/presentation.js";
 import { createContext, useContext, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { sidebarThreadLifecyclesAtom } from "../preferences/atoms.js";
@@ -196,9 +198,10 @@ export function useSidebarData() {
   const state = experimental_useSidebarThreads({
     experimental_lifecycles: lifecycles,
   });
+  const boat = useBoatState();
   return useMemo(
-    () => ({ ...getSidebarData(state), archived: state.experimental_archived }),
-    [state],
+    () => ({ ...getSidebarData({ ...state, threads: applyBoatState(state.threads, boat) }), archived: state.experimental_archived }),
+    [state, boat],
   );
 }
 

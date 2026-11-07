@@ -1,3 +1,6 @@
+import { SeenThreadsProvider } from "./app/workbench/SeenThreads.js";
+import { BoatStateProvider } from "./app/workbench/BoatState.js";
+import "./app/workbench/rows.css";
 import {
   definePluginApp,
   type PluginThreadListProps,
@@ -19,6 +22,9 @@ function ThreadList({
   return (
     <CompactViewportOverrideProvider isCompactViewport={isCompactViewport}>
       <TooltipProvider>
+      <BoatStateProvider>
+      <SeenThreadsProvider activeThreadId={activeThreadId}>
+      <div className="wb-list" data-workbench-mobile={isCompactViewport ? "true" : undefined}>
         <PreferencesSync />
         <ThreadSelectionProvider activeThreadId={activeThreadId}>
           <ProjectList
@@ -26,6 +32,9 @@ function ThreadList({
             onProjectSelect={onNavigate}
           />
         </ThreadSelectionProvider>
+      </div>
+      </SeenThreadsProvider>
+      </BoatStateProvider>
       </TooltipProvider>
     </CompactViewportOverrideProvider>
   );
@@ -34,7 +43,7 @@ function ThreadList({
 export default definePluginApp((app) => {
   app.slots.experimental_threadList({
     id: "thread-list",
-    title: "Thread list",
+    title: "Workbench sidebar",
     description:
       "Pinned threads, custom sections, projects, machines, and nested threads.",
     component: ThreadList,

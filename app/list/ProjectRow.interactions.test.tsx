@@ -549,7 +549,7 @@ describe("ProjectRow interactions", () => {
     expect(
       threadLink?.closest<HTMLElement>(".bb-sidebar-hover-actions-row")?.style
         .paddingLeft,
-    ).toBe("8px");
+    ).toBe("10px");
     expect(projectGroup?.getAttribute("data-sidebar-project-id")).toBe(
       "proj_test",
     );
@@ -596,12 +596,12 @@ describe("ProjectRow interactions", () => {
     expect(
       container.querySelector('[data-sidebar-thread-id="thr_parent"]'),
     ).not.toBeNull();
-    expect(header?.style.paddingLeft).toBe("32px");
-    expect(guide?.style.left).toBe("40px");
+    expect(header?.style.paddingLeft).toBe("34px");
+    expect(guide?.style.left).toBe("43px");
     expect(
       child?.closest<HTMLElement>(".bb-sidebar-hover-actions-row")?.style
         .paddingLeft,
-    ).toBe("56px");
+    ).toBe("58px");
   });
 
   it("shows generic runtime activity before a named workflow rollup", () => {

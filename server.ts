@@ -37,6 +37,8 @@ const preferenceValuesSchema = z.object(
 );
 
 export const threadListRpcContract = defineRpcContract({
+  seenThreads: { input:z.null(), output:z.object({threadIds:z.array(z.string().min(1).max(1024)).max(10_000)}) },
+  markThreadsSeen: { input:z.object({threadIds:z.array(z.string().min(1).max(1024)).max(2000)}).strict(), output:z.null() },
   listPreferences: {
     input: z.null(),
     output: z.object({ preferences: preferenceValuesSchema }).strict(),
@@ -195,7 +197,17 @@ const JSON_OPTION = {
 export default async function threadListPlugin(bb: BbPluginApi) {
   const store = createPreferenceStore(bb);
 
+  let seenWrite: Promise<unknown> = Promise.resolve();
+  const readSeen = async ():Promise<string[]> => {
+    const parsed = threadListRpcContract.seenThreads.output.safeParse({threadIds:await bb.storage.kv.get("workbench:seenThreads:v1") ?? []});
+    return parsed.success ? parsed.data.threadIds : [];
+  };
   bb.rpc.register(threadListRpcContract, {
+    async seenThreads() { return {threadIds:await readSeen()}; },
+    async markThreadsSeen({threadIds}) {
+      const write = seenWrite.then(async()=>{ const ids=new Set(await readSeen()); for(const id of threadIds){ids.delete(id);ids.add(id);} const bounded=[...ids].slice(-10_000); while(Buffer.byteLength(JSON.stringify(bounded),"utf8") > 200_000) bounded.shift(); await bb.storage.kv.set("workbench:seenThreads:v1",bounded); });
+      seenWrite=write.catch(()=>{}); await write; return null;
+    },
     async listPreferences() {
       return { preferences: await store.readAll() };
     },

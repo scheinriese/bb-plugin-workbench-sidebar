@@ -489,7 +489,7 @@ function getThreadNodeStickyLevel({
 function ThreadTreeGroupLine({ parentRowDepth }: ThreadTreeGroupLineProps) {
   return (
     <span
-      className="pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-border-hairline opacity-70"
+      className="wb-tree-guide pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-border-hairline opacity-70"
       style={{ left: getSidebarThreadGroupLineLeft(parentRowDepth) }}
       aria-hidden="true"
     />
@@ -501,7 +501,7 @@ function ThreadTreeLineContinuation({
 }: ThreadTreeLineContinuationProps) {
   return (
     <span
-      className="pointer-events-none absolute -bottom-0.5 top-0 z-[1] w-px bg-border-hairline opacity-70"
+      className="wb-tree-guide pointer-events-none absolute -bottom-0.5 top-0 z-[1] w-px bg-border-hairline opacity-70"
       style={{ left: getSidebarThreadGroupLineLeft(parentRowDepth) }}
       aria-hidden="true"
     />
@@ -515,7 +515,7 @@ function ProjectThreadTreeGroup({
   return (
     <div
       data-sidebar-sticky-section=""
-      className="relative space-y-0.5"
+      className="relative wb-tree-stack"
       onClickCapture={onClickCapture}
     >
       {children}
@@ -1016,7 +1016,7 @@ const EnvironmentThreadGroupRow = memo(function EnvironmentThreadGroupRow({
           onToggleCollapsed={onToggleEnvironmentCollapsed}
         />
         {!isCollapsed ? (
-          <div className="relative space-y-px">
+          <div className="relative wb-tree-stack">
             <ThreadTreeGroupLine parentRowDepth={rowDepth} />
             <SidebarWindowedItems
               itemKeys={itemKeys}
@@ -1314,7 +1314,7 @@ const SectionTreeItemRow = memo(function SectionTreeItemRow({
     });
 
   const childrenArea = showChildren ? (
-    <div className="relative space-y-px">
+    <div className="relative wb-tree-stack">
       {depthOffset > 0 ? (
         <ThreadTreeGroupLine parentRowDepth={headerDepth} />
       ) : null}
@@ -1414,7 +1414,7 @@ const SectionTreeItemRow = memo(function SectionTreeItemRow({
       ref={sortableRef}
       style={sortableStyle}
       data-sidebar-section-id={section.id}
-      className="relative space-y-0.5 rounded-md transition-colors"
+      className="relative wb-tree-stack rounded-md transition-colors"
     >
       {threadDropState ? (
         <SectionDropTargetOverlay state={threadDropState} />
@@ -1575,13 +1575,13 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
     <SidebarStickyGroup
       style={sortableStyle}
       className={cn(
-        "relative space-y-0.5",
+        "relative wb-tree-stack",
         afterSubtree && REORDER_PLACEMENT_CLASS.after,
       )}
     >
       {row}
       {showChildren || nestPreviewThread !== null ? (
-        <div className="relative space-y-px">
+        <div className="relative wb-tree-stack">
           <ThreadTreeGroupLine parentRowDepth={parentRowDepth} />
           {showChildren ? (
             <SidebarWindowedItems
@@ -1626,6 +1626,7 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               }}
             />
           ) : null}
+          {showChildren && (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? <a className="wb-shipped-link" style={{paddingLeft:34 + parentRowDepth*24}} href={node.thread.href} onClick={onProjectSelect}>{node.thread.boat!.rollup!.shippedToday} shipped today →</a> : null}
           {nestPreviewThread !== null && nestPreviewBeforeKey === null ? (
             <NestDropPreviewRow
               depth={parentRowDepth + 1}

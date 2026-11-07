@@ -378,3 +378,13 @@ it("validates lifecycle selection through CLI and RPC and broadcasts it", async 
     payload: { key: "threadLifecycles", value: ["archived"], origin: null },
   });
 });
+
+describe("Workbench opened-thread record",()=>{
+ it("persists first open and serializes concurrent seen writes",async()=>{
+  const {bb,harness}=setup();await plugin(bb);
+  await Promise.all([harness.behavior.callRpc("markThreadsSeen",{threadIds:["task"]}),harness.behavior.callRpc("markThreadsSeen",{threadIds:["lead"]})]);
+  expect(await harness.behavior.callRpc("seenThreads",null)).toEqual({threadIds:["task","lead"]});
+  await expect(harness.behavior.callRpc("markThreadsSeen",{threadIds:Array(2001).fill("t")})).rejects.toThrow();
+ });
+ it("keeps opened state below the SDK KV byte limit",async()=>{const{bb,harness}=setup();await plugin(bb);await harness.behavior.callRpc("markThreadsSeen",{threadIds:Array.from({length:2000},(_,i)=>`${i}-`+"x".repeat(1000))});const result=await harness.behavior.callRpc("seenThreads",null);expect(Buffer.byteLength(JSON.stringify(result),"utf8")).toBeLessThan(201_000);});
+});

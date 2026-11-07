@@ -285,14 +285,14 @@ function renderSplitThreadRow(args: RenderThreadRowArgs = {}) {
 
 function renderedIndicators(): Array<string | null> {
   return Array.from(
-    document.querySelectorAll("[data-thread-status-glyph]"),
-    (glyph) => glyph.getAttribute("data-thread-status-glyph"),
+    document.querySelectorAll("[data-workbench-indicator]"),
+    (glyph) => glyph.getAttribute("data-workbench-indicator"),
   );
 }
 
 function statusGlyph(): HTMLElement {
   const glyph = document.querySelector<HTMLElement>(
-    "[data-thread-status-glyph]",
+    "[data-workbench-indicator]",
   );
   if (!glyph) {
     throw new Error("Expected a thread status glyph");
@@ -940,8 +940,8 @@ describe("ThreadRow", () => {
     });
 
     const draftGlyph = statusGlyph();
-    expect(draftGlyph.getAttribute("data-thread-status-glyph")).toBe("draft");
-    expect(draftGlyph.hasAttribute("data-hide-idle-draft-label")).toBe(true);
+    expect(draftGlyph.getAttribute("data-workbench-indicator")).toBe("draft");
+    expect(draftGlyph.querySelector('path[d="M8.2 1.8l2 2L4 10H2V8l6.2-6.2z"]')).not.toBeNull();
     expect(
       draftGlyph.closest("[data-sidebar-thread-trailing-indicator]"),
     ).not.toBeNull();
@@ -950,7 +950,7 @@ describe("ThreadRow", () => {
     ).not.toBeNull();
   });
 
-  it("passes a plugin status over the draft glyph and drops it without one", () => {
+  it("keeps the exact draft pencil ahead of a plugin status", () => {
     const withStatus = renderThreadRow({
       hasComposerDraft: true,
       pluginStatus: {
@@ -960,19 +960,17 @@ describe("ThreadRow", () => {
       thread: createThread({ lastReadAt: 1, latestAttentionAt: 1 }),
     });
 
-    expect(statusGlyph().getAttribute("data-thread-status-glyph")).toBe(
+    expect(statusGlyph().getAttribute("data-workbench-indicator")).toBe(
       "draft",
     );
-    expect(statusGlyph().getAttribute("data-row-status")).toBe(
-      "Plugin improving draft",
-    );
+    expect(statusGlyph().getAttribute("data-row-status")).toBeNull();
     withStatus.unmount();
 
     renderThreadRow({
       hasComposerDraft: true,
       thread: createThread({ lastReadAt: 1, latestAttentionAt: 1 }),
     });
-    expect(statusGlyph().getAttribute("data-thread-status-glyph")).toBe(
+    expect(statusGlyph().getAttribute("data-workbench-indicator")).toBe(
       "draft",
     );
     expect(statusGlyph().hasAttribute("data-row-status")).toBe(false);
@@ -1000,7 +998,7 @@ describe("ThreadRow", () => {
 
   it("passes the plugin status tone through to the status glyph", () => {
     renderThreadRow({
-      hasComposerDraft: true,
+      hasComposerDraft: false,
       pluginStatus: {
         icon: "AiContentGenerator01",
         label: "Plugin improving draft",
@@ -1399,7 +1397,7 @@ describe("ThreadRow", () => {
     expect(
       tier?.style.getPropertyValue("--bb-sidebar-sticky-parent-level"),
     ).toBe("1");
-    expect(tier?.style.paddingLeft).toBe("56px");
+    expect(tier?.style.paddingLeft).toBe("58px");
     expect(tier?.querySelector('[aria-hidden="true"].w-px')).not.toBeNull();
   });
 

@@ -6,6 +6,6 @@ export default defineConfig({
     silent: "passed-only",
     name: "bb-plugin-thread-list",
     include: ["**/*.test.{ts,tsx}"],
-    exclude: ["node_modules/**"],
+    exclude: ["node_modules/**", "upstream/**", "fidelity-work/**", "vendor/**"],
   },
 });

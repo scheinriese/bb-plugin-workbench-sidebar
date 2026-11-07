@@ -1,12 +1,12 @@
 ---
-name: thread-list
+name: workbench-sidebar
 description: "Inspect or change the sidebar thread list's layout preferences: organization mode, sort, section order, hidden groups, collapsed groups, and thread row actions."
 ---
 
 # Thread list preferences
 
 The Thread list plugin owns the sidebar's layout state. Read it with
-`bb thread-list prefs list --json`; keys are `showProviderIcons`, `showRowMetadata`, `threadLifecycles`, `organizationMode`,
+`bb workbench-sidebar prefs list --json`; keys are `showProviderIcons`, `showRowMetadata`, `threadLifecycles`, `organizationMode`,
 `environmentGrouping`, `groupByReadStatus`, `chronologicalSort`, `sortDirection`, `sectionOrder`,
 `manualSectionOrder`, `machineSectionOrder`, `hiddenGroups` (including the
 built-in `threads` group), `rowActions`,
@@ -14,15 +14,15 @@ built-in `threads` group), `rowActions`,
 `collapsedEnvironments`, `collapsedThreadSections`, and `collapsedMachines`.
 
 ```sh
-bb thread-list prefs list [--json]
-bb thread-list prefs get <key> [--json]
-bb thread-list prefs set <key> <value> [--json]
-bb thread-list prefs reset <key> [--json]
+bb workbench-sidebar prefs list [--json]
+bb workbench-sidebar prefs get <key> [--json]
+bb workbench-sidebar prefs set <key> <value> [--json]
+bb workbench-sidebar prefs reset <key> [--json]
 ```
 
 `set` takes JSON; a bare word is read as a string, so
-`bb thread-list prefs set organizationMode machine` and
-`bb thread-list prefs set manualSectionOrder '["pinned","sections","threads"]'`
+`bb workbench-sidebar prefs set organizationMode machine` and
+`bb workbench-sidebar prefs set manualSectionOrder '["pinned","sections","threads"]'`
 both work. A value the key's schema rejects fails with
 `invalid_preference_value` and leaves the stored value alone. Every open
 window applies a change immediately. Sections themselves and a thread's
@@ -52,11 +52,11 @@ list across organizations, so include existing keys to keep them hidden;
 `reset` shows every group:
 
 ```sh
-bb thread-list prefs set hiddenGroups '["threads","project:proj_example"]'
+bb workbench-sidebar prefs set hiddenGroups '["threads","project:proj_example"]'
 ```
 
 The header's Filter menu selects Active, Archived, or both; at least one must
-remain selected. `bb thread-list prefs set threadLifecycles '["archived"]'`
+remain selected. `bb workbench-sidebar prefs set threadLifecycles '["archived"]'`
 shows archived threads, and `'["active","archived"]'` shows both. The default
 is `'["active"]'`. Archived results load in pages; use Show more at the end
 of the list. The same preference is available through `setPreference` RPC.
@@ -74,7 +74,7 @@ hover, left to right before its actions menu, as thread action keys: bb's
 `<pluginId>/<actionId>`. Bare legacy ids such as `archive` and `core/<id>`
 keys still work. The default is `'["bb--core/archive"]'` and `'[]'` leaves
 only the menu. For example,
-`bb thread-list prefs set rowActions '["bb--core/pin","bb--core/archive"]'`.
+`bb workbench-sidebar prefs set rowActions '["bb--core/pin","bb--core/archive"]'`.
 In the app, a thread
 row's actions menu has Customize actions, which turns that row's quick
 actions into three editable slots in place; each slot picks an action, a filled
@@ -83,7 +83,7 @@ elsewhere finishes.
 
 Organize → Rows → Provider icons toggles the icon before each thread title.
 `showProviderIcons` defaults to `true`; use
-`bb thread-list prefs set showProviderIcons false` to hide them. Unknown
+`bb workbench-sidebar prefs set showProviderIcons false` to hide them. Unknown
 provider ids have no icon.
 
 Organize → Rows → Metadata adds a line under each thread's title where plugins
@@ -92,11 +92,11 @@ two lines only when a plugin shows something for them. The option appears only
 while the `threadRowMetadata` experiment is on
 (`bb settings experiment threadRowMetadata true`); while it is off the sidebar
 ignores `showRowMetadata`. `showRowMetadata` defaults to `false`; use
-`bb thread-list prefs set showRowMetadata true` to turn it on.
+`bb workbench-sidebar prefs set showRowMetadata true` to turn it on.
 
 Organize → Groups → By read status lists threads that show the unread dot above
 the rest, keeping the selected sort within each group. `groupByReadStatus`
-defaults to `false`; use `bb thread-list prefs set groupByReadStatus true` to
+defaults to `false`; use `bb workbench-sidebar prefs set groupByReadStatus true` to
 turn it on. Parents start collapsed while it is on, without changing
 `collapsedThreads`, and `environmentGrouping` is ignored. The open thread keeps
 its place until another thread is opened.
