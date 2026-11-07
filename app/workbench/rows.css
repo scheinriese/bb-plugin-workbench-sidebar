@@ -318,6 +318,12 @@
   --bb-sidebar-sticky-row-gap: 0px;
   --bb-sidebar-sticky-label-gap: 0px;
 }
+/* The phone drawer has no host padding to bleed into. Keep its list inside
+   the scroll viewport so a vertical gesture cannot pan it sideways. */
+.wb-list[data-workbench-mobile] {
+  margin-inline: 0;
+  width: 100%;
+}
 .wb-list .wb-row[data-sidebar-sticky-tier]::before {
   height: auto;
 }
