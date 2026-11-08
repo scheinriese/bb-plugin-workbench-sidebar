@@ -82,8 +82,8 @@ function createThread(
 }
 
 function activity(
-  overrides: Partial<PluginSidebarThread["activity"]>,
-): PluginSidebarThread["activity"] {
+  overrides: Partial<PluginSidebarThread["activity"] & { goals: number }>,
+): PluginSidebarThread["activity"] & { goals: number } {
   return {
     workflows: 0,
     backgroundAgents: 0,

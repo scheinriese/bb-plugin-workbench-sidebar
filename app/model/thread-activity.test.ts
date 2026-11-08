@@ -390,6 +390,19 @@ describe("thread-activity", () => {
   });
 
   describe("getCollapsedChildActivity", () => {
+    it("accepts bb 0.49 activity without the retired goals field", () => {
+      const thread = makeEntry({ activity: { workflows: 1 } });
+      Reflect.deleteProperty(thread.activity, "goals");
+      const state = threadListIndicatorStateForThread(thread, false);
+      expect(state.isGoalActive).toBe(false);
+      expect(resolveThreadListIndicator(state)).toBe("workflow");
+      expect(getCollapsedChildActivity([thread])).toMatchObject({
+        working: true,
+        workflow: true,
+        goal: false,
+      });
+    });
+
     it("lists every aggregated thread for per-row draft lookups", () => {
       expect(
         getCollapsedChildActivity([busyChild, pendingChild]),

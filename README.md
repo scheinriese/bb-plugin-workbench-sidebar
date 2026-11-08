@@ -73,8 +73,9 @@ its preferences.
 
 ## Compatibility and development
 
-This version tracks bb 0.48.1 and Plugin SDK 0.6.104. It is a complete fork
-of bb's MIT-licensed thread-list plugin; upstream attribution is retained.
+Requires bb 0.48.1 or newer and Plugin SDK >=0.6.104 <0.7. Tested with
+bb 0.48.1 / SDK 0.6.104 and bb 0.49.0 / SDK 0.6.132. This is a complete
+fork of bb's MIT-licensed thread-list plugin; upstream attribution is retained.
 See [upstream inventory](docs/upstream.md),
 [Boat contract](docs/boat-sidebar-contract.md) and
 [host boundaries](docs/api-limits.md).

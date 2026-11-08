@@ -59,7 +59,13 @@ function hasActivePlanModeActivity(thread: ThreadActivityStateShape): boolean {
 }
 
 function hasActiveGoalActivity(thread: ThreadActivityStateShape): boolean {
-  return thread.activity.goals > 0;
+  // bb 0.49 no longer supplies goal activity. Preserve the older host's cue.
+  const activity = thread.activity;
+  return (
+    "goals" in activity &&
+    typeof activity.goals === "number" &&
+    activity.goals > 0
+  );
 }
 
 function isBusyThread(
@@ -91,10 +97,11 @@ export interface ThreadListIndicatorState {
 
 export type ThreadListIndicatorKind = PluginSidebarThreadIndicator;
 
-const THREAD_LIST_INDICATOR_LABELS: Record<
-  Exclude<ThreadListIndicatorKind, "none">,
-  string
-> = {
+// Only emitted when an older host actually supplies active goal activity.
+// That host accepts this indicator; bb 0.49 removed it from its SDK union.
+const LEGACY_GOAL_INDICATOR = "goal" as ThreadListIndicatorKind;
+
+const THREAD_LIST_INDICATOR_LABELS = {
   "unread-error": "Unread thread failed",
   "waiting-for-input": "Thread needs user input",
   "working-draft": "Thread working with unsubmitted draft",
@@ -108,7 +115,7 @@ const THREAD_LIST_INDICATOR_LABELS: Record<
   "queued-waiting": "Thread has a message waiting to send",
   draft: "Thread has unsubmitted draft",
   "unread-success": "Unread thread succeeded",
-};
+} as const;
 
 export function getThreadListIndicatorLabel(
   kind: ThreadListIndicatorKind,
@@ -188,7 +195,7 @@ export function resolveThreadListIndicator(
   const hasActiveWork = hasThreadListWorkingActivity(state);
   if (state.hasUnsubmittedDraft && hasActiveWork) return "working-draft";
   if (state.isPlanModeActive) return "plan-mode";
-  if (state.isGoalActive) return "goal";
+  if (state.isGoalActive) return LEGACY_GOAL_INDICATOR;
   if (state.isRuntimeActive) return "runtime";
   if (state.isWorkflowActive) return "workflow";
   if (state.queuedWork === "failed") return "queued-failed";
