@@ -67,8 +67,8 @@ export function OrderHoldProvider({
       const box = ref.current?.getBoundingClientRect();
       over =
         !!box &&
-        event.clientX >= Math.max(0, box.left + 8) &&
-        event.clientX < box.right - 8;
+        event.clientX >= Math.max(0, box.left) &&
+        event.clientX < box.right;
       update();
     };
     const leave = (event: PointerEvent) => {

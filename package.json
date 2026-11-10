@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-workbench-sidebar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "bb's sidebar thread list: pinned threads, custom sections, projects, machines, and nested threads.",

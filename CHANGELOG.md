@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Remove desktop sidebar overhang so horizontal trackpad gestures cannot pan the thread list.
+- Keep vertical scrolling and pinned headers working at narrow and wide sidebar widths, with the phone layout unchanged.
+- Hold urgency ordering across the full sidebar width during pointer interaction.
+
 ## 0.1.1
 
 - Allow installation on bb 0.49.0; remove the unnecessary bb minor-version ceiling while retaining the SDK compatibility range.
