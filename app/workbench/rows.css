@@ -618,6 +618,7 @@ html:not(.dark) .wb-list {
   --wb-guide: var(--border-hairline);
   --wb-selected: var(--state-active);
 }
+html:not(.dark) .wb-list .wb-row.wb-selected,
 html:not(.dark) .wb-list .wb-selected .wb-title {
   color: var(--sidebar-foreground);
 }

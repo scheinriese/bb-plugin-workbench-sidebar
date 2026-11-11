@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Keep the Codex provider logo readable when its thread is selected in light mode, including while its activity ring is spinning.
+
 ## 0.1.2
 
 - Remove desktop sidebar overhang so horizontal trackpad gestures cannot pan the thread list.
