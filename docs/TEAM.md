@@ -178,16 +178,34 @@ then resumed on the corresponding event. The count remains visible if the
 chief home is missing or filtered out, and the chief's accessible name is
 "Nora, chief of staff" (or the configured chief name).
 
-The build finishes with conservative Terser minification, including an explicit
-allow-list of **private in-repo view properties only**. All quoted properties
-and every property name present in the installed public SDK types are protected;
-wire/DOM/SDK names are never included. `npm run check:bundle` enforces the measured
-same-toolchain main baseline of 511,138 eager bytes and verifies the artwork table
-is absent. The compiled-artifact smoke test uses only declared public packages
-as test-host runtime slots; no private host API is used by the plugin.
-Run `npm run build && npm run check:bundle && npm run test:built` for that
-additional shipped-artifact QA. The ordinary suite skips artifact QA when no
-build has been requested, so it also works in a fresh checkout.
+`npm run build` invokes **only bb's own `buildPluginApp` pipeline**, matching
+what `bb plugin install <path>` rebuilds. The former Terser post-step and its
+private-property mangling have been removed: that output was not what the
+installer shipped. The installer-equivalent eager JS is about **529 KB**, not
+the previously reported post-processed 509 KB. It includes Team UI code but
+not the lazily requested SVG table. No claim of a main-sized eager bundle is
+made; the same-toolchain main baseline is 511,138 bytes.
+
+`npm run check:bundle` reports the actual bb-built byte count and its delta
+from that baseline, and checks that the artwork table is absent. It no longer
+asserts the invalid post-processing budget. Run:
+
+```sh
+npm run build
+npm run check:bundle
+npm run test:built
+```
+
+`test:built` smoke-tests the **unmodified bb-built artifact**, with Team off/on,
+native chat preservation, disclosures and navigation. It uses only declared
+public packages as test-host runtime slots. The ordinary suite skips artifact
+QA when no build has been requested, so it also works in a fresh checkout.
+
+Native project groups and Team lead headers have separate drag-and-drop
+namespaces (`project:<bb-id>` versus `project:team:<lead-thread-id>`), including
+separate root sortable-list keys. Native drop lookup cannot accidentally treat
+a Team header as the owner's normal project group; assignment ownership still
+comes from the engine, not from dropping a plain chat into Team.
 
 The orbit and dock are driven by measured Boat activity and assignment ownership, not
 by a clock or hardcoded snapshot. Project asks stay on blocked work rows,

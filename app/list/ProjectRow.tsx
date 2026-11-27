@@ -1,3 +1,4 @@
+import { teamSectionId } from "../workbench/team.js";
 import type { TeamSidebarDto } from "../../shared/boat-sidebar.js";
 import { TeamProjectLabel } from "../workbench/TeamProjectLabel.js";
 import {
@@ -223,6 +224,7 @@ export interface ProjectRowProps {
 }
 
 interface ProjectThreadTreeProps {
+  sortableParentKey?: string;
   depthOffset?: number;
   projectId?: string;
   dndParentKey?: string;
@@ -1908,6 +1910,7 @@ function SectionThreadTreeItems({
 }
 
 export const ProjectThreadTree = memo(function ProjectThreadTree({
+  sortableParentKey,
   depthOffset,
   projectId,
   dndParentKey,
@@ -1969,7 +1972,7 @@ export const ProjectThreadTree = memo(function ProjectThreadTree({
       items={rootItems}
       sectionDnd={dndParentKey !== undefined ? sectionDnd : null}
       projectId={projectId}
-      sortableParentKey={projectId}
+      sortableParentKey={sortableParentKey ?? projectId}
       selectedThreadId={selectedThreadId}
       collapsedThreadIds={collapsedThreadIds}
       collapsedEnvironmentIds={collapsedEnvironmentIds}
@@ -2260,6 +2263,9 @@ function ProjectRowComponent({
   projectRowStyle,
 }: ProjectRowProps) {
   const sdk = useSdk();
+  const sectionKey = teamProject
+    ? teamSectionId(teamProject.leadThreadId)
+    : buildSidebarEntitySectionId("project", project.id);
   const rename = useSidebarRename({
     kind: "project",
     id: project.id,
@@ -2344,6 +2350,7 @@ function ProjectRowComponent({
         <div
           data-sidebar-sticky-project-item=""
           data-sidebar-project-id={project.id}
+          data-sidebar-project-dnd-key={sectionKey}
         >
           <TopLevelSidebarSection
             label={project.name}
@@ -2356,7 +2363,7 @@ function ProjectRowComponent({
                 />
               ) : undefined
             }
-            dropParentKey={buildSidebarEntitySectionId("project", project.id)}
+            dropParentKey={sectionKey}
             labelEditor={rename.editor}
             onRename={rename.startEditingFromDoubleClick}
             actions={projectActions}
@@ -2376,7 +2383,8 @@ function ProjectRowComponent({
             <ProjectThreadTree
               depthOffset={teamProject ? 1 : undefined}
               projectId={project.id}
-              dndParentKey={buildSidebarEntitySectionId("project", project.id)}
+              dndParentKey={sectionKey}
+              sortableParentKey={teamProject ? sectionKey : undefined}
               rootItems={rootItems}
               threadListState={threadListState}
               selectedThreadId={selectedThreadId}
