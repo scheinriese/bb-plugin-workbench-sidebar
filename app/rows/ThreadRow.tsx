@@ -1,8 +1,7 @@
-import { useTeamState } from "../workbench/BoatState.js";
+import { useTeamIndex, useTeamState } from "../workbench/BoatState.js";
 import { TeamAvatar } from "../workbench/TeamAvatar.js";
 import {
   memberPreview,
-  teamMemberFor,
   showTeamProvider,
   teamMemberVisualState,
 } from "../workbench/team.js";
@@ -599,10 +598,14 @@ function ThreadRowComponent({
   const team = useTeamState();
   const calmFaces = useAtomValue(calmFacesAtom);
   const everyProvider = useAtomValue(showProviderOnEveryRowAtom);
-  const member = teamMemberFor(team, thread.id);
-  const assignee = team?.members.find((m) =>
-    m.backgroundThreadIds.includes(thread.id),
-  );
+  const teamIndex = useTeamIndex();
+  const member = teamIndex.membersByHome.get(thread.id);
+  const assignee =
+    teamIndex.assignees.get(thread.id) ??
+    (thread.workbenchTeamMemberId
+      ? teamIndex.membersById.get(thread.workbenchTeamMemberId)
+      : undefined);
+  const isTeamRow = !!(member || assignee || thread.workbenchTeamLeadThreadId);
   const projectName = useSidebarProjectName(
     thread.workbenchTeamProjectId ?? null,
   );
@@ -663,6 +666,7 @@ function ThreadRowComponent({
   );
   const rowClassName = cn(
     "wb-row",
+    isTeamRow && "wb-team-owned",
     member && "wb-team-member",
     member?.kind === "lead" && "wb-team-chief",
     isNew && "wb-row-new",
@@ -812,7 +816,11 @@ function ThreadRowComponent({
             onProjectSelect?.();
           }}
           onDoubleClick={isEditing ? undefined : startTitleEditing}
-          aria-label={linkLabel}
+          aria-label={
+            member?.kind === "lead"
+              ? `Open ${member.name}, chief of staff${hasComposerDraft ? " (unsubmitted draft)" : ""}`
+              : linkLabel
+          }
           aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
           className="absolute inset-0 rounded-md outline-none"
         />
@@ -835,19 +843,20 @@ function ThreadRowComponent({
             {avatar && (
               <TeamAvatar
                 member={avatar}
-                visualState={teamMemberVisualState(
-                  avatar,
-                  boatStates,
-                  member ? undefined : thread.id,
-                )}
+                visualState={
+                  member
+                    ? teamIndex.visuals.get(member.memberId)
+                    : teamMemberVisualState(avatar, boatStates, thread.id)
+                }
                 calm={calmFaces}
                 chief={member?.kind === "lead"}
                 working={workbenchWorking}
                 task={!member}
                 providerLabel={provider?.displayName ?? providerId}
-                orbitMembers={team?.members.filter(
-                  (m) => teamMemberVisualState(m, boatStates) === "working",
-                )}
+                orbitMembers={
+                  member?.kind === "lead" ? teamIndex.orbit : undefined
+                }
+                projectIcon={teamIndex.projectIcons.get(avatar.threadId)}
               />
             )}
             {providerVisible ? (
@@ -864,7 +873,7 @@ function ThreadRowComponent({
                   >
                     <ProviderActivity
                       provider={provider}
-                      neutral={!!team && !!thread.boat}
+                      neutral={isTeamRow}
                       providerId={providerId}
                       working={avatar ? false : workbenchWorking}
                       review={isReview}
@@ -881,9 +890,6 @@ function ThreadRowComponent({
               <span className="wb-title-line">
                 {member?.kind === "lead" && hasComposerDraft && (
                   <span className="wb-chief-draft">Draft</span>
-                )}
-                {member?.kind === "lead" && (
-                  <span className="wb-chief-role"> · chief of staff</span>
                 )}
                 {isEditing ? (
                   <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
@@ -907,6 +913,9 @@ function ThreadRowComponent({
                     )}
                   </span>
                 )}
+                {member?.kind === "lead" && (
+                  <span className="wb-chief-role"> · chief of staff</span>
+                )}
                 {parentOptions &&
                 hasChildren &&
                 (!isCompactViewport || options.depth === 0 || isRollupGroup) ? (
@@ -926,7 +935,7 @@ function ThreadRowComponent({
                 <span
                   className="wb-second-line"
                   data-tone={secondLine.tone}
-                  title={secondLine.text}
+                  title={isTeamRow ? secondLine.text : undefined}
                 >
                   {secondLine.text}
                 </span>

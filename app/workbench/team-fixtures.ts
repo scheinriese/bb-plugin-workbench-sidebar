@@ -25,6 +25,7 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     ...extra,
   });
   const team = teamSidebarSchema.parse({
+    version: 1,
     enabled: true,
     revision: `example-${time}`,
     truncated: false,

@@ -162,3 +162,51 @@ describe("Harbormaster sidebarState Team v1 compatibility", () => {
     expect(parsed.threads[0]).not.toHaveProperty("handoff");
   });
 });
+
+it("requires the final explicit nested version and enforces string limits", () => {
+  const { version: _, ...unversioned } = teamFixture().team;
+  expect(parseTeamSidebar(unversioned)).toBeUndefined();
+  const team = teamFixture().team;
+  for (const lead of [
+    { ...team.lead!, memberId: "" },
+    { ...team.lead!, threadId: "x".repeat(201) },
+    { ...team.lead!, name: "x".repeat(41) },
+    { ...team.lead!, avatar: { initials: "x".repeat(9), color: "blue" } },
+    { ...team.lead!, avatar: { initials: "A", color: "x".repeat(33) } },
+    {
+      ...team.lead!,
+      preview: { ...team.lead!.preview, text: "x".repeat(161) },
+    },
+  ])
+    expect(parseTeamSidebar({ ...team, lead })).toBeUndefined();
+});
+it("slices oversized arrays before validation, retains the chief/all asks and marks truncation", () => {
+  const f = teamFixture();
+  const input = {
+    ...f.team,
+    yourMove: { count: 999, overdue: 2, confirm: 4 },
+    lead: {
+      ...f.team.lead!,
+      backgroundThreadIds: Array.from({ length: 101 }, (_, i) => `chief-${i}`),
+    },
+    members: [
+      ...Array.from({ length: 200 }, (_, i) => ({
+        ...f.team.members[0]!,
+        memberId: `m${i}`,
+        backgroundThreadIds: Array.from({ length: 101 }, (_, n) => `b${n}`),
+      })),
+      false,
+    ],
+    projects: [...Array(200).fill(f.team.projects[0]), false],
+    hideFromSections: [...Array(201).fill("home"), false],
+  };
+  const parsed = parseTeamSidebar(input)!;
+  expect(parsed.members).toHaveLength(200);
+  expect(parsed.projects).toHaveLength(200);
+  expect(parsed.hideFromSections).toHaveLength(201);
+  expect(parsed.members[0]!.backgroundThreadIds).toHaveLength(100);
+  expect(parsed.lead!.backgroundThreadIds).toHaveLength(100);
+  expect(parsed.lead!.threadId).toBe("thr_nora");
+  expect(parsed.yourMove).toEqual(input.yourMove);
+  expect(parsed.truncated).toBe(true);
+});

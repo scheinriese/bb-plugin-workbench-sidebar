@@ -3,8 +3,11 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
   type ReactNode,
 } from "react";
+import { TeamArtworkProvider } from "./TeamArtwork.js";
+import { buildTeamIndex } from "./team.js";
 import { useSdk } from "@get-bb/plugin-sdk/app";
 import {
   sidebarRpcMethods,
@@ -19,6 +22,11 @@ export const BoatStateContext = createContext<
 export const TeamStateContext = createContext<TeamSidebarDto | undefined>(
   undefined,
 );
+const emptyTeamIndex = buildTeamIndex(undefined, new Map());
+export const TeamIndexContext = createContext(emptyTeamIndex);
+export function useTeamIndex() {
+  return useContext(TeamIndexContext);
+}
 export function useTeamState() {
   return useContext(TeamStateContext);
 }
@@ -98,14 +106,19 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", visibility);
     };
   }, [sdk]);
+  const index = useMemo(() => buildTeamIndex(team, state), [team, state]);
   return (
-    <BoatStateContext.Provider value={state}>
-      <TeamStateContext.Provider value={team}>
-        <QueuedStartsContext.Provider value={queued}>
-          {children}
-        </QueuedStartsContext.Provider>
-      </TeamStateContext.Provider>
-    </BoatStateContext.Provider>
+    <TeamArtworkProvider enabled={!!team}>
+      <TeamIndexContext.Provider value={index}>
+        <BoatStateContext.Provider value={state}>
+          <TeamStateContext.Provider value={team}>
+            <QueuedStartsContext.Provider value={queued}>
+              {children}
+            </QueuedStartsContext.Provider>
+          </TeamStateContext.Provider>
+        </BoatStateContext.Provider>
+      </TeamIndexContext.Provider>
+    </TeamArtworkProvider>
   );
 }
 export function useBoatState() {

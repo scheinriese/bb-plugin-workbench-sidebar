@@ -1,7 +1,9 @@
+import { makeSidebarThread } from "../model/fixtures.js";
 import { expect, it } from "vitest";
 import { teamFixture } from "./team-fixtures.js";
 import {
   memberPreview,
+  buildTeamIndex,
   partitionTeamThreads,
   showTeamProvider,
   teamMemberVisualState,
@@ -136,4 +138,94 @@ it("uses a task's own measured state instead of another assignment's activity", 
   const boat = new Map(states.map((row) => [row.threadId, row]));
   expect(teamMemberVisualState(member, boat)).toBe("working");
   expect(teamMemberVisualState(member, boat, "thr_pricing")).toBe("waiting");
+});
+
+it("never treats a shared BB project or Personal as Team ownership", () => {
+  const f = teamFixture();
+  const plainWeb = makeSidebarThread({
+    id: "my-web-chat",
+    projectId: "web",
+    sectionId: "my-section",
+  });
+  const personal = makeSidebarThread({
+    id: "my-personal-chat",
+    projectId: "personal",
+  });
+  f.team.projects.push({
+    bbProjectId: "personal",
+    leadThreadId: "projectless-lead",
+    icon: "Folder",
+  });
+  const result = partitionTeamThreads(
+    [...f.threads, plainWeb, personal],
+    f.team,
+  );
+  expect(result.sections.find((t) => t.id === plainWeb.id)).toBe(plainWeb);
+  expect(result.sections.find((t) => t.id === personal.id)).toBe(personal);
+  expect(
+    result.members.some((t) => t.id === plainWeb.id || t.id === personal.id),
+  ).toBe(false);
+});
+it("places explicitly owned work and descendants, without sweeping sibling chats", () => {
+  const f = teamFixture();
+  f.team.members[0]!.backgroundThreadIds = ["assigned"];
+  const assigned = makeSidebarThread({ id: "assigned", projectId: "web" });
+  const child = makeSidebarThread({
+    id: "assigned-child",
+    projectId: "personal",
+    parentThreadId: "assigned",
+  });
+  const plain = makeSidebarThread({ id: "plain-sibling", projectId: "web" });
+  const result = partitionTeamThreads(
+    [...f.threads, assigned, child, plain],
+    f.team,
+  );
+  expect(
+    result.sections.find((t) => t.id === assigned.id)
+      ?.workbenchTeamLeadThreadId,
+  ).toBe("thr_web-lead");
+  expect(
+    result.sections.find((t) => t.id === child.id)?.workbenchTeamLeadThreadId,
+  ).toBe("thr_web-lead");
+  expect(result.sections.find((t) => t.id === plain.id)).toBe(plain);
+});
+it("keeps two leads in a shared project separate by ancestry", () => {
+  const f = teamFixture();
+  f.team.projects.push({
+    bbProjectId: "web",
+    leadThreadId: "other-lead",
+    icon: "Book",
+  });
+  const taskA = makeSidebarThread({
+    id: "a",
+    projectId: "web",
+    parentThreadId: "thr_web-lead",
+  });
+  const taskB = makeSidebarThread({
+    id: "b",
+    projectId: "web",
+    parentThreadId: "other-lead",
+  });
+  const result = partitionTeamThreads([...f.threads, taskA, taskB], f.team);
+  expect(
+    result.sections.find((t) => t.id === "a")?.workbenchTeamLeadThreadId,
+  ).toBe("thr_web-lead");
+  expect(
+    result.sections.find((t) => t.id === "b")?.workbenchTeamLeadThreadId,
+  ).toBe("other-lead");
+});
+it("precomputes the roster, assignees, inherited review owners and orbit once", () => {
+  const f = teamFixture();
+  const states = new Map(f.states.map((s) => [s.threadId, s]));
+  states.set("deep-review", {
+    ...f.states[0]!,
+    threadId: "deep-review",
+    role: "review",
+    parentThreadId: "thr_pricing",
+  });
+  const index = buildTeamIndex(f.team, states);
+  expect(index.assignees.get("deep-review")?.memberId).toBe("iris");
+  expect(index.membersByHome.get("thr_nora")?.kind).toBe("lead");
+  expect(index.orbit.map((m) => m.memberId)).toEqual(["docs-lead"]);
+  expect(index.projectIcons.get("thr_docs-lead")).toBe("Folder");
 });

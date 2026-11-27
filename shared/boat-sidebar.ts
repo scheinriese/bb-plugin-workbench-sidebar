@@ -1,19 +1,25 @@
 // Boat is independent of the sidebar. Consumers call this additive v1 RPC.
 import { z } from "zod";
-/** Team uses sidebarState's v1 envelope; it has no separate wire version field.
- * Synced with Harbormaster contract-team.ts at e0dce6d. */
+/** Versioned Team projection, synced with Harbormaster 0b2a349. */
 export const TEAM_SIDEBAR_VERSION = 1 as const;
+export const TEAM_SIDEBAR_LIMITS = {
+  members: 200,
+  projects: 200,
+  hidden: 201,
+  backgroundThreads: 100,
+} as const;
+const sidebarId = z.string().min(1).max(200);
 export const teamPreviewSchema = z.object({
   kind: z.enum(["needs-you", "activity", "counts", "last-message"]),
-  text: z.string(),
+  text: z.string().max(160),
   tone: z.enum(["neutral", "attention", "danger", "success"]),
 });
 export const teamMemberSchema = z.object({
-  memberId: z.string(),
-  threadId: z.string().min(1),
-  name: z.string(),
+  memberId: sidebarId,
+  threadId: sidebarId,
+  name: z.string().max(40),
   kind: z.enum(["lead", "specialist", "project-lead"]),
-  avatar: z.object({ initials: z.string(), color: z.string() }),
+  avatar: z.object({ initials: z.string().max(8), color: z.string().max(32) }),
   status: z.enum(["active", "paused", "archived"]),
   preview: teamPreviewSchema,
   unread: z.object({
@@ -21,37 +27,76 @@ export const teamMemberSchema = z.object({
     cards: z.number().int().nonnegative(),
   }),
   order: z.number().int(),
-  backgroundThreadIds: z.array(z.string()),
+  backgroundThreadIds: z
+    .array(sidebarId)
+    .max(TEAM_SIDEBAR_LIMITS.backgroundThreads),
 });
 const teamSidebarV1Schema = z.object({
+  version: z.literal(1),
   enabled: z.literal(true),
   yourMove: z.object({
     count: z.number().int().nonnegative(),
     overdue: z.number().int().nonnegative(),
     confirm: z.number().int().nonnegative(),
   }),
-  projects: z.array(
-    z.object({
-      bbProjectId: z.string(),
-      icon: z.string(),
-      leadThreadId: z.string(),
-    }),
-  ),
+  projects: z
+    .array(
+      z.object({
+        bbProjectId: sidebarId,
+        icon: z.string().max(64),
+        leadThreadId: sidebarId,
+      }),
+    )
+    .max(TEAM_SIDEBAR_LIMITS.projects),
   lead: teamMemberSchema.nullable(),
-  members: z.array(teamMemberSchema),
-  hideFromSections: z.array(z.string()),
-  revision: z.string(),
+  members: z.array(teamMemberSchema).max(TEAM_SIDEBAR_LIMITS.members),
+  hideFromSections: z.array(sidebarId).max(TEAM_SIDEBAR_LIMITS.hidden),
+  revision: z.string().max(64),
   truncated: z.boolean(),
 });
-// A future explicit block version must not be silently interpreted as v1.
+/** Slice before validating: oversized projections retain their chief/count and
+ * expose truncation instead of disabling Team or walking unbounded arrays. */
+function boundTeamProjection(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const input = value as Record<string, unknown>;
+  let truncated = false;
+  const slice = (value: unknown, cap: number) => {
+    if (!Array.isArray(value)) return value;
+    if (value.length > cap) truncated = true;
+    return value.slice(0, cap);
+  };
+  const member = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return value;
+    const row = value as Record<string, unknown>;
+    return {
+      ...row,
+      backgroundThreadIds: slice(
+        row.backgroundThreadIds,
+        TEAM_SIDEBAR_LIMITS.backgroundThreads,
+      ),
+    };
+  };
+  const members = slice(input.members, TEAM_SIDEBAR_LIMITS.members);
+  const projects = slice(input.projects, TEAM_SIDEBAR_LIMITS.projects);
+  const hidden = slice(input.hideFromSections, TEAM_SIDEBAR_LIMITS.hidden);
+  const lead = input.lead === null ? null : member(input.lead);
+  const boundedMembers = Array.isArray(members) ? members.map(member) : members;
+  return {
+    ...input,
+    lead,
+    members: boundedMembers,
+    projects,
+    hideFromSections: hidden,
+    // Do not hide malformed/missing flags by supplying a default.
+    truncated:
+      typeof input.truncated === "boolean"
+        ? input.truncated || truncated
+        : input.truncated,
+  };
+}
 export const teamSidebarSchema = z.preprocess(
-  (value) =>
-    value &&
-    typeof value === "object" &&
-    "version" in value &&
-    value.version !== TEAM_SIDEBAR_VERSION
-      ? undefined
-      : value,
+  boundTeamProjection,
   teamSidebarV1Schema,
 );
 export type TeamSidebarDto = z.infer<typeof teamSidebarSchema>;

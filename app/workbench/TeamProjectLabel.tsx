@@ -1,25 +1,23 @@
 import { useBbNavigate } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { useAtomValue } from "jotai";
+import { useTeamIndex } from "./BoatState.js";
 import { calmFacesAtom } from "../preferences/atoms.js";
 import { TeamAvatar } from "./TeamAvatar.js";
 import type { TeamSidebarDto } from "../../shared/boat-sidebar.js";
 export function TeamProjectLabel({
   project,
   teamProject,
-  team,
   onNavigate,
 }: {
   project: { name: string; href: string };
   teamProject: TeamSidebarDto["projects"][number];
-  team: TeamSidebarDto;
   onNavigate?: () => void;
 }) {
   const navigate = useBbNavigate();
   const calm = useAtomValue(calmFacesAtom);
-  const lead = [...(team.lead ? [team.lead] : []), ...team.members].find(
-    (m) => m.threadId === teamProject.leadThreadId,
-  );
+  const index = useTeamIndex();
+  const lead = index.membersByHome.get(teamProject.leadThreadId);
   const glyph = /book|docs/i.test(teamProject.icon)
     ? "Book"
     : /globe|web/i.test(teamProject.icon)
@@ -42,7 +40,11 @@ export function TeamProjectLabel({
       <span>{project.name}</span>
       {lead && (
         <>
-          <TeamAvatar member={lead} calm={calm} />
+          <TeamAvatar
+            member={lead}
+            calm={calm}
+            projectIcon={teamProject.icon}
+          />
           <span className="wb-project-lead-name">{lead.name}</span>
         </>
       )}

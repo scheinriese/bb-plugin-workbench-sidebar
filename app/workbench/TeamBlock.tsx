@@ -1,8 +1,8 @@
 import { useBbNavigate } from "@get-bb/plugin-sdk/app";
 import { useAtom, useAtomValue } from "jotai";
-import { useBoatState, useTeamState } from "./BoatState.js";
+import { useTeamIndex, useTeamState } from "./BoatState.js";
 import {
-  collapsedProjectIdsAtom,
+  collapsedThreadIdsAtom,
   teamCollapsedAtom,
   calmFacesAtom,
   sidebarHiddenGroupsAtom,
@@ -18,6 +18,8 @@ import {
   ThreadListVisibilityGroupScope,
   ThreadListMore,
 } from "../list/ThreadListVisibility.js";
+import { teamSectionId } from "./team.js";
+import type { TeamSidebarDto } from "../../shared/boat-sidebar.js";
 import type { SidebarSectionId } from "../model/sidebar-section-id.js";
 
 export function TeamBlock({
@@ -28,14 +30,17 @@ export function TeamBlock({
   onCreateProjectThread,
 }: {
   onCreateProjectThread?: (id: string) => void;
-  projects: readonly SidebarProject[];
+  projects: readonly {
+    project: SidebarProject;
+    teamProject: TeamSidebarDto["projects"][number];
+  }[];
   threads: readonly SidebarThread[];
   treeProps: Omit<ComponentProps<typeof ProjectThreadTree>, "threadListState">;
   onNavigate?: () => void;
 }) {
   const navigate = useBbNavigate();
   const team = useTeamState();
-  const boatStates = useBoatState();
+  const index = useTeamIndex();
   useEffect(() => {
     if (!team?.enabled) return;
     const update = () =>
@@ -54,9 +59,7 @@ export function TeamBlock({
       document.documentElement.removeAttribute("data-wb-team-motion-paused");
     };
   }, [team?.enabled]);
-  const [collapsedProjects, setCollapsedProjects] = useAtom(
-    collapsedProjectIdsAtom,
-  );
+  const [collapsedLeads, setCollapsedLeads] = useAtom(collapsedThreadIdsAtom);
   const [collapsed, setCollapsed] = useAtom(teamCollapsedAtom);
   const calm = useAtomValue(calmFacesAtom);
   const hidden = useAtomValue(sidebarHiddenGroupsAtom);
@@ -67,19 +70,15 @@ export function TeamBlock({
   const order = new Map(team.members.map((m) => [m.threadId, m.order]));
   const compareThreads = (a: SidebarThread, b: SidebarThread) =>
     (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
-  const docked = team.members
-    .filter(
-      (m) =>
-        m.preview.kind === "needs-you" ||
-        m.backgroundThreadIds.some(
-          (id) => boatStates.get(id)?.status === "needs-you",
-        ),
-    )
-    .slice(-3);
-  const renderProject = (project: SidebarProject, close?: () => void) => (
+  const docked = index.dock;
+  const renderProject = (
+    { project, teamProject }: (typeof projects)[number],
+    close?: () => void,
+  ) => (
     <ProjectRow
       {...treeProps}
       project={project}
+      teamProject={teamProject}
       threadListState={{ status: "ready", threads: project.threads }}
       onCreateProjectThread={onCreateProjectThread}
       onProjectSelect={() => {
@@ -87,32 +86,32 @@ export function TeamBlock({
         onNavigate?.();
       }}
       isActive={false}
-      isCollapsed={collapsedProjects.includes(project.id)}
-      onToggleProjectCollapsed={(id) =>
-        setCollapsedProjects((current) =>
-          current.includes(id)
-            ? current.filter((p) => p !== id)
-            : [...current, id],
+      isCollapsed={collapsedLeads.includes(teamProject.leadThreadId)}
+      onToggleProjectCollapsed={() =>
+        setCollapsedLeads((current) =>
+          current.includes(teamProject.leadThreadId)
+            ? current.filter((id) => id !== teamProject.leadThreadId)
+            : [...current, teamProject.leadThreadId],
         )
       }
     />
   );
   const orderedProjects = [...projects].sort((a, b) => {
     const rank = (id: string) => {
-      const i = projectOrder.indexOf(`project:${id}`);
+      const i = projectOrder.indexOf(teamSectionId(id));
       return i < 0 ? 10000 : i;
     };
-    return rank(a.id) - rank(b.id);
+    return rank(a.teamProject.leadThreadId) - rank(b.teamProject.leadThreadId);
   });
-  const sectionOrder = orderedProjects.map(
-    (p) => `project:${p.id}` as SidebarSectionId,
+  const sectionOrder: SidebarSectionId[] = orderedProjects.map((p) =>
+    teamSectionId(p.teamProject.leadThreadId),
   );
   return (
     <ThreadListVisibility
       groups={orderedProjects.map((p) => ({
-        id: `project:${p.id}` as SidebarSectionId,
-        title: p.name,
-        threads: p.threads,
+        id: teamSectionId(p.teamProject.leadThreadId),
+        title: p.project.name,
+        threads: p.project.threads,
         renderContent: (close) => renderProject(p, close),
       }))}
       label="Team projects"
@@ -128,7 +127,7 @@ export function TeamBlock({
       }
     >
       <section className="wb-team-block" aria-label="Team">
-        {chief.length > 0 && (
+        {(chief.length > 0 || team.yourMove.count > 0) && (
           <div
             className="wb-chief-tile"
             style={
@@ -137,10 +136,17 @@ export function TeamBlock({
               } as CSSProperties
             }
           >
-            <ProjectThreadTree
-              {...treeProps}
-              threadListState={{ status: "ready", threads: chief }}
-            />
+            {chief.length ? (
+              <ProjectThreadTree
+                {...treeProps}
+                threadListState={{ status: "ready", threads: chief }}
+              />
+            ) : (
+              <div className="wb-chief-unavailable">
+                {team.lead?.name ?? "Team"}
+                <span>Your move</span>
+              </div>
+            )}
             {team.yourMove.count > 0 && (
               <div className="wb-chief-trailing">
                 {!calm && (
@@ -200,10 +206,18 @@ export function TeamBlock({
           </>
         )}
         {orderedProjects
-          .filter((p) => !hidden.includes(`project:${p.id}`))
+          .filter(
+            (p) => !hidden.includes(teamSectionId(p.teamProject.leadThreadId)),
+          )
           .map((project) => (
-            <div className="wb-team-project" key={project.id}>
-              <ThreadListVisibilityGroupScope id={`project:${project.id}`}>
+            <div
+              className="wb-team-project"
+              key={project.teamProject.leadThreadId}
+              data-team-project-lead={project.teamProject.leadThreadId}
+            >
+              <ThreadListVisibilityGroupScope
+                id={teamSectionId(project.teamProject.leadThreadId)}
+              >
                 {renderProject(project)}
               </ThreadListVisibilityGroupScope>
             </div>

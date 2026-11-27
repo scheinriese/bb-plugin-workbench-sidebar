@@ -1331,10 +1331,6 @@ function ProjectListComponent({
       ),
     [projects, team],
   );
-  const teamProjectIds = useMemo(
-    () => new Set(team?.projects.map((p) => p.bbProjectId) ?? []),
-    [team],
-  );
   const teamPinnedIds = useMemo(
     () =>
       team
@@ -1343,32 +1339,55 @@ function ProjectListComponent({
         : new Set<string>(),
     [team, teamPartition],
   );
+  const teamProjects = useMemo(
+    () =>
+      (team?.projects ?? []).flatMap((teamProject) => {
+        const leadHome = projects
+          .flatMap((p) => p.threads)
+          .find((t) => t.id === teamProject.leadThreadId);
+        const project =
+          projects.find((p) => p.id === teamProject.bbProjectId) ??
+          (teamProject.bbProjectId === "personal"
+            ? personalProject
+            : undefined) ??
+          projects.find((p) => p.id === leadHome?.projectId);
+        return project
+          ? [
+              {
+                teamProject,
+                project: {
+                  ...project,
+                  threads: teamPartition.sections.filter(
+                    (t) =>
+                      t.workbenchTeamLeadThreadId ===
+                        teamProject.leadThreadId && !teamPinnedIds.has(t.id),
+                  ),
+                },
+              },
+            ]
+          : [];
+      }),
+    [projects, personalProject, team, teamPartition, teamPinnedIds],
+  );
+  const renderedTeamLeads = useMemo(
+    () => new Set(teamProjects.map((p) => p.teamProject.leadThreadId)),
+    [teamProjects],
+  );
   const threads = useMemo(
     () =>
       teamPartition.sections.filter(
         (t) =>
-          !teamProjectIds.has(t.workbenchTeamProjectId ?? t.projectId) ||
+          !t.workbenchTeamLeadThreadId ||
+          !renderedTeamLeads.has(t.workbenchTeamLeadThreadId) ||
           teamPinnedIds.has(t.id),
       ),
-    [teamPartition, teamProjectIds, teamPinnedIds],
+    [teamPartition, teamPinnedIds, renderedTeamLeads],
   );
-  const teamProjects = useMemo(
-    () =>
-      projects
-        .filter((p) => teamProjectIds.has(p.id))
-        .map((p) => ({
-          ...p,
-          threads: teamPartition.sections.filter(
-            (t) =>
-              (t.workbenchTeamProjectId ?? t.projectId) === p.id &&
-              !teamPinnedIds.has(t.id),
-          ),
-        })),
-    [projects, teamPartition, teamProjectIds, teamPinnedIds],
-  );
-  const ordinaryProjects = useMemo(
-    () => projects.filter((p) => !teamProjectIds.has(p.id)),
-    [projects, teamProjectIds],
+  // Native project groups must remain available for the owner's ordinary chats.
+  const ordinaryProjects = projects;
+  const rollupThreads = useMemo(
+    () => (team ? projects.flatMap((p) => p.threads) : threads),
+    [team, projects, threads],
   );
   const preferencesReady = usePreferencesReady();
   const threadListStatus = toThreadListStatus(status);
@@ -1609,12 +1628,12 @@ function ProjectListComponent({
   const setRollupCollapsed = useSetAtom(collapsedThreadIdsAtom);
   useEffect(() => {
     if (heldOrder || !preferencesReady) return;
-    const ids = firstRollupCrossings(threads, rollupSeen);
+    const ids = firstRollupCrossings(rollupThreads, rollupSeen);
     if (!ids.length) return;
     setRollupSeen((current) => [...new Set([...current, ...ids])]);
     setRollupCollapsed((current) => [...new Set([...current, ...ids])]);
   }, [
-    threads,
+    rollupThreads,
     rollupSeen,
     heldOrder,
     preferencesReady,

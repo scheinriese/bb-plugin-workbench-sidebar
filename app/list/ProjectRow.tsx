@@ -1,4 +1,4 @@
-import { useTeamState } from "../workbench/BoatState.js";
+import type { TeamSidebarDto } from "../../shared/boat-sidebar.js";
 import { TeamProjectLabel } from "../workbench/TeamProjectLabel.js";
 import {
   ThreadCreationPlacementScope,
@@ -201,6 +201,7 @@ export type ProjectThreadListState =
     };
 
 export interface ProjectRowProps {
+  teamProject?: TeamSidebarDto["projects"][number];
   project: SidebarProject;
   threadListState: ProjectThreadListState;
   rootItems?: readonly ProjectThreadItem[];
@@ -2239,6 +2240,7 @@ export const ChronologicalSectionThreadSections = memo(
 );
 
 function ProjectRowComponent({
+  teamProject,
   project,
   threadListState,
   rootItems,
@@ -2258,8 +2260,6 @@ function ProjectRowComponent({
   projectRowStyle,
 }: ProjectRowProps) {
   const sdk = useSdk();
-  const team = useTeamState();
-  const teamProject = team?.projects.find((p) => p.bbProjectId === project.id);
   const rename = useSidebarRename({
     kind: "project",
     id: project.id,
@@ -2352,7 +2352,6 @@ function ProjectRowComponent({
                 <TeamProjectLabel
                   project={project}
                   teamProject={teamProject}
-                  team={team!}
                   onNavigate={onProjectSelect}
                 />
               ) : undefined

@@ -1,3 +1,4 @@
+import { teamAvatarImages } from "./assets/team/avatar-data.js";
 import {
   cliCommand,
   defineCli,
@@ -37,6 +38,7 @@ const preferenceValuesSchema = z.object(
 );
 
 export const threadListRpcContract = defineRpcContract({
+  teamArtwork: { input: z.null(), output: z.record(z.string().regex(/^h[23]\/face-nora-(idle|working|needs|attention|paused|quiet|stalled|failed)-(dark|light)$/), z.string().startsWith("data:image/svg+xml;base64,").max(12000)).refine(images => Object.keys(images).length <= 32) },
   seenThreads: { input:z.null(), output:z.object({threadIds:z.array(z.string().min(1).max(1024)).max(10_000)}) },
   markThreadsSeen: { input:z.object({threadIds:z.array(z.string().min(1).max(1024)).max(2000)}).strict(), output:z.null() },
   listPreferences: {
@@ -203,6 +205,7 @@ export default async function threadListPlugin(bb: BbPluginApi) {
     return parsed.success ? parsed.data.threadIds : [];
   };
   bb.rpc.register(threadListRpcContract, {
+    async teamArtwork() { return Object.fromEntries(Object.entries(teamAvatarImages).filter(([key]) => /^h[23]\/face-nora-/.test(key)).map(([key, svg]) => [key, `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`])); },
     async seenThreads() { return {threadIds:await readSeen()}; },
     async markThreadsSeen({threadIds}) {
       const write = seenWrite.then(async()=>{ const ids=new Set(await readSeen()); for(const id of threadIds){ids.delete(id);ids.add(id);} const bounded:string[]=[]; let bytes=2;
