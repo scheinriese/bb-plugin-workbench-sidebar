@@ -648,3 +648,71 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
   .wb-row-main {
   padding-right: calc(var(--bb-sidebar-hover-actions-inset, 0px) + 16px);
 }
+
+/* Team handoff 659f604. Native rows, controls and tree lines remain in use. */
+.wb-team-block { margin-bottom: 12px; }
+.wb-team-avatar { position: relative; display: inline-flex; flex: 0 0 18px; width: 18px; height: 18px; vertical-align: middle; align-items: center; justify-content: center; }
+.wb-team-face { display: block; width: 16px; height: 16px; flex: none; transform-origin: center; }
+.wb-team-face svg { width: 100%; height: 100%; overflow: visible; }
+.wb-avatar-light { display: none; }
+:root:not(.dark) .wb-avatar-dark { display: none; }
+:root:not(.dark) .wb-avatar-light { display: block; }
+.wb-team-avatar[data-task][data-working] > .wb-team-face { width: 10px; height: 10px; }
+.wb-team-avatar[data-task][data-working]::after { content: ''; position: absolute; inset: 0; border: 1.5px solid #bdbdbd; border-left-color: #2c2c2c; border-radius: 50%; animation: wb-working 1.6s linear infinite; }
+.wb-list .wb-team-member:not(.wb-team-chief) { height: 28px !important; }
+.wb-list .wb-team-member:not(.wb-team-chief) .wb-text-column { flex-direction: row; align-items: center; gap: 6px; }
+.wb-list .wb-team-member:not(.wb-team-chief) .wb-title-line { flex: 1; min-width: 0; }
+.wb-list .wb-team-member:not(.wb-team-chief) .wb-second-line { max-width: 60%; font-size: 12px; text-align: right; }
+.wb-list .wb-team-member .wb-member-unread { display: inline-flex; align-items: center; gap: 4px; width: auto; color: var(--muted-foreground, #8a8a8a); font-size: 10px; }
+.wb-chief-tile { position: relative; margin: 6px 8px 12px; border: 1px solid #303030; border-radius: 10px; background: #262626; }
+.wb-list .wb-team-chief { height: 62px !important; padding-left: 2px !important; padding-right: 10px; }
+.wb-team-chief .wb-team-avatar { flex-basis: 64px; width: 64px; height: 50px; }
+.wb-team-avatar[data-chief] > .wb-team-face { width: 40.8px; height: 40.8px; position: relative; z-index: 2; }
+.wb-list .wb-team-chief .wb-text-column { padding-right: 56px; }
+.wb-list .wb-team-chief .wb-title-line { display: flex; gap: 3px; align-items: baseline; }
+.wb-list .wb-team-chief .wb-title { order: -1; font-size: 13px; font-weight: 600; color: #ededed; }
+.wb-chief-role { color: #a8a8a8; font-size: 13px; white-space: nowrap; }
+.wb-list .wb-team-chief .wb-second-line { color: #a8a8a8; font-size: 12px; margin-top: 3px; }
+.wb-team-chief .wb-row-trailing { display: none; }
+.wb-chief-trailing { position: absolute; display: flex; gap: 6px; align-items: center; right: 10px; top: 21px; }
+.wb-team-dock { position: relative; height: 18px; }
+.wb-team-dock > span { position: absolute; top: 0; width: 18px; height: 18px; border-radius: 50%; background: #262626; }
+.wb-your-move { display: inline-flex; align-items: center; justify-content: center; height: 20px; min-width: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 10px; background: #f0b135; color: #151515; font-size: 12px; font-weight: 700; text-decoration: none; }
+.wb-your-move span { animation: wb-count-in 160ms cubic-bezier(.2,.8,.2,1); }
+.wb-your-move:focus-visible, .wb-team-heading:focus-visible, .wb-team-project-label:focus-visible { outline: 2px solid var(--sidebar-ring, #6e9be8); outline-offset: 2px; }
+.wb-team-heading { display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px; color: var(--muted-foreground, #b7b7b7); font-size: 12px; text-align: left; cursor: pointer; }
+.wb-team-project { margin-top: 12px; }
+.wb-team-project-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; text-decoration: none; color: inherit; }
+.wb-team-project-label .wb-team-avatar { width: 18px; height: 18px; flex-basis: 18px; order: -1; }
+.wb-team-project-label > [data-icon] { display: none; }
+.wb-project-lead-name { overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 400; color: var(--muted-foreground, #8a8a8a); }
+.wb-team-orbit { position: absolute; inset: 0; width: 64px; height: 50px; color: #4a4a4a; }
+.wb-satellite { position: absolute; left: 24px; top: 17px; width: 16px; height: 16px; }
+.wb-satellite .wb-team-face { width: 16px; height: 16px; }
+.wb-handoff { margin-left: 5px; font-size: 10px; line-height: 14px; border: 1px solid #3a3a3a; border-radius: 4px; padding: 0 4px; color: #8a8a8a; white-space: nowrap; }
+.wb-row:hover .wb-team-avatar[data-system=calm]:not([data-rest]) > .wb-team-face { animation: wb-calm-breathe 4s ease-in-out infinite; }
+.wb-row:hover .wb-team-avatar[data-system=calm]:not([data-rest]) [data-eyes] { transform-box: fill-box; transform-origin: center; animation: wb-calm-eyes 10s ease-in-out infinite; }
+@keyframes wb-calm-breathe { 50% { transform: scale(1.02); } }
+@keyframes wb-calm-eyes { 0%,49%,52%,100% { transform: scaleY(1); } 50%,51% { transform: scaleY(.1); } 60%,72% { transform: translateX(.9px); } }
+@keyframes wb-count-in { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+:root:not(.dark) .wb-chief-tile, :root:not(.dark) .wb-team-dock > span { background: #ededed; border-color: #dfdfdf; }
+:root:not(.dark) .wb-your-move { background: #b45309; color: white; }
+:root:not(.dark) .wb-list .wb-team-chief .wb-title, :root:not(.dark) .wb-chief-role, :root:not(.dark) .wb-list .wb-team-chief .wb-second-line { color: #525252; }
+:root:not(.dark) .wb-list:has(.wb-team-block) { --wb-title: #333; --wb-guide: #dfdfdf; --wb-selected: #ededed; }
+:root:not(.dark) .wb-list:has(.wb-team-block) .wb-row.wb-selected { color: #262626; }
+:root:not(.dark) .wb-list:has(.wb-team-block) .wb-second-line { color: #707070; }
+:root:not(.dark) .wb-list:has(.wb-team-block) [data-tone=attention] { color: #b45309; }
+:root:not(.dark) .wb-list:has(.wb-team-block) .wb-dot[data-tone=attention] { background: #b45309; }
+:root:not(.dark) .wb-list:has(.wb-team-block) [data-tone=danger] { color: #b91c1c; }
+:root:not(.dark) .wb-team-avatar[data-task][data-working]::after { border-color: #707070; border-left-color: #dfdfdf; }
+.wb-list[data-workbench-mobile] .wb-team-member:not(.wb-team-chief) { height: 40px !important; }
+@media (prefers-reduced-motion: reduce) {
+  .wb-team-avatar *, .wb-team-avatar::after, .wb-your-move span { animation: none !important; transition: none !important; }
+}
+
+:root[data-wb-team-motion-paused] .wb-team-avatar * { animation-play-state: paused !important; }
+.wb-team-project .wb-section-content { position: relative; }
+.wb-team-project .wb-section-content::before { content: ''; position: absolute; left: 19px; top: 0; bottom: 0; width: 1px; background: var(--wb-guide, #343434); pointer-events: none; }
+.wb-list .wb-team-member:not(.wb-team-chief) .wb-text-column { margin-top: 0; }
+.wb-list .wb-team-member:not(.wb-team-chief) .wb-row-label { align-items: center; }
+.wb-list .wb-team-chief .wb-text-column { padding-right: var(--wb-chief-trailing-width, 56px); }

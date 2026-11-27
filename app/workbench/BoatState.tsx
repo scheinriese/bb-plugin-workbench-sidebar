@@ -10,19 +10,31 @@ import {
   sidebarRpcMethods,
   type SidebarThreadDto,
   type SidebarQueuedStartDto,
+  type TeamSidebarDto,
 } from "../../shared/boat-sidebar.js";
 
 export const BoatStateContext = createContext<
   ReadonlyMap<string, SidebarThreadDto>
 >(new Map());
-export const QueuedStartsContext = createContext<readonly SidebarQueuedStartDto[]>([]);
-export function useQueuedStarts() { return useContext(QueuedStartsContext); }
+export const TeamStateContext = createContext<TeamSidebarDto | undefined>(
+  undefined,
+);
+export function useTeamState() {
+  return useContext(TeamStateContext);
+}
+export const QueuedStartsContext = createContext<
+  readonly SidebarQueuedStartDto[]
+>([]);
+export function useQueuedStarts() {
+  return useContext(QueuedStartsContext);
+}
 /** One bounded read for the list, never a request per row. Boat is optional. */
 export function BoatStateProvider({ children }: { children: ReactNode }) {
   const sdk = useSdk();
   const [state, setState] = useState<ReadonlyMap<string, SidebarThreadDto>>(
     new Map(),
   );
+  const [team, setTeam] = useState<TeamSidebarDto>();
   const [queued, setQueued] = useState<readonly SidebarQueuedStartDto[]>([]);
   useEffect(() => {
     let disposed = false;
@@ -50,13 +62,15 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
           revision = result.revision;
           setState(new Map(result.threads.map((row) => [row.threadId, row])));
           setQueued(result.queuedStarts ?? []);
+          setTeam(result.team?.enabled ? result.team : undefined);
         }
       } catch {
         // Missing/disabled/older Boat and invalid responses quietly restore generic BB.
         if (!disposed) {
           revision = null;
+          setTeam(undefined);
           setState((previous) => (previous.size ? new Map() : previous));
-          setQueued(previous => previous.length ? [] : previous);
+          setQueued((previous) => (previous.length ? [] : previous));
         }
       } finally {
         inFlight = false;
@@ -78,7 +92,11 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
   }, [sdk]);
   return (
     <BoatStateContext.Provider value={state}>
-      <QueuedStartsContext.Provider value={queued}>{children}</QueuedStartsContext.Provider>
+      <TeamStateContext.Provider value={team}>
+        <QueuedStartsContext.Provider value={queued}>
+          {children}
+        </QueuedStartsContext.Provider>
+      </TeamStateContext.Provider>
     </BoatStateContext.Provider>
   );
 }

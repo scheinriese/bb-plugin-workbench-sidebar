@@ -1,3 +1,6 @@
+import { useTeamState } from "../workbench/BoatState.js";
+import { TeamBlock } from "../workbench/TeamBlock.js";
+import { partitionTeamThreads } from "../workbench/team.js";
 import { useOrderHold, holdComparator } from "../workbench/OrderHold.js";
 import { firstRollupCrossings } from "../workbench/auto-collapse.js";
 import {
@@ -504,8 +507,7 @@ function useGroupedModeThreadDnd({
 }
 
 interface ProjectModeSectionsProps
-  extends BuiltInSectionRenderState,
-    GroupedModePinnedProps {
+  extends BuiltInSectionRenderState, GroupedModePinnedProps {
   collapsedEnvironmentIds: Set<string>;
   collapsedThreadIds: Set<string>;
   compareThreads: ThreadComparator;
@@ -934,8 +936,7 @@ function SectionModeSections({
 }
 
 interface MachineModeSectionsProps
-  extends BuiltInSectionRenderState,
-    GroupedModePinnedProps {
+  extends BuiltInSectionRenderState, GroupedModePinnedProps {
   collapsedEnvironmentIds: Set<string>;
   collapsedThreadIds: Set<string>;
   compareThreads: ThreadComparator;
@@ -1321,9 +1322,49 @@ function ProjectListComponent({
   const { status, sections, projects, personalProject, archived } =
     useSidebarData();
   const personalProjectId = personalProject?.id ?? null;
-  const threads = useMemo<SidebarThread[]>(
-    () => projects.flatMap((project) => project.threads),
-    [projects],
+  const team = useTeamState();
+  const teamPartition = useMemo(
+    () =>
+      partitionTeamThreads(
+        projects.flatMap((project) => project.threads),
+        team,
+      ),
+    [projects, team],
+  );
+  const teamProjectIds = useMemo(
+    () => new Set(team?.projects.map((p) => p.bbProjectId) ?? []),
+    [team],
+  );
+  const teamPinnedIds = useMemo(
+    () =>
+      team
+        ? buildPinnedSidebarState({ threads: teamPartition.sections })
+            .effectivePinnedThreadIds
+        : new Set<string>(),
+    [team, teamPartition],
+  );
+  const threads = useMemo(
+    () =>
+      teamPartition.sections.filter(
+        (t) => !teamProjectIds.has(t.projectId) || teamPinnedIds.has(t.id),
+      ),
+    [teamPartition, teamProjectIds, teamPinnedIds],
+  );
+  const teamProjects = useMemo(
+    () =>
+      projects
+        .filter((p) => teamProjectIds.has(p.id))
+        .map((p) => ({
+          ...p,
+          threads: teamPartition.sections.filter(
+            (t) => t.projectId === p.id && !teamPinnedIds.has(t.id),
+          ),
+        })),
+    [projects, teamPartition, teamProjectIds, teamPinnedIds],
+  );
+  const ordinaryProjects = useMemo(
+    () => projects.filter((p) => !teamProjectIds.has(p.id)),
+    [projects, teamProjectIds],
   );
   const preferencesReady = usePreferencesReady();
   const threadListStatus = toThreadListStatus(status);
@@ -1736,6 +1777,21 @@ function ProjectListComponent({
     >
       <ProjectListShell>
         <SidebarDraftPresenceSync />
+        <TeamBlock
+          onCreateProjectThread={handleCreateProjectThread}
+          projects={teamProjects}
+          threads={teamPartition.members}
+          onNavigate={onProjectSelect}
+          treeProps={{
+            selectedThreadId,
+            collapsedThreadIds,
+            collapsedEnvironmentIds,
+            compareThreads: sidebarThreadComparator,
+            onProjectSelect,
+            onToggleThreadCollapsed: toggleThreadCollapsed,
+            onToggleEnvironmentCollapsed: toggleEnvironmentCollapsed,
+          }}
+        />
         <ActiveSidebarModeSections
           mode={organizationMode}
           renderMachine={() => (
@@ -1800,7 +1856,7 @@ function ProjectListComponent({
           renderProject={() => (
             <ProjectModeSections
               personalProjectId={personalProjectId}
-              projects={projects}
+              projects={ordinaryProjects}
               threads={threads}
               effectivePinnedThreadIds={
                 pinnedSidebarState.effectivePinnedThreadIds

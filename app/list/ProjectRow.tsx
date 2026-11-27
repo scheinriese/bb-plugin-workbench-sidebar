@@ -1,10 +1,15 @@
+import { useTeamState } from "../workbench/BoatState.js";
+import { TeamProjectLabel } from "../workbench/TeamProjectLabel.js";
 import {
   ThreadCreationPlacementScope,
   useThreadCreationPlacement,
 } from "./ThreadCreationPlacement.js";
 import { useQueuedStarts } from "../workbench/BoatState.js";
 import { QueuedStartRow } from "../workbench/QueuedStartRow.js";
-import { queueRequestOrder, partitionQueuedChildren } from "../workbench/queued-starts.js";
+import {
+  queueRequestOrder,
+  partitionQueuedChildren,
+} from "../workbench/queued-starts.js";
 import { MANY_TASKS_THRESHOLD } from "../workbench/presentation.js";
 import {
   ThreadListVisibility,
@@ -217,6 +222,7 @@ export interface ProjectRowProps {
 }
 
 interface ProjectThreadTreeProps {
+  depthOffset?: number;
   projectId?: string;
   dndParentKey?: string;
   rootItems?: readonly ProjectThreadItem[];
@@ -251,8 +257,7 @@ interface ChronologicalBuiltInSidebarSections {
   threads: Omit<BuiltInSidebarSectionOptions, "content">;
 }
 
-interface ChronologicalSectionThreadSectionsProps
-  extends SectionThreadTreeProps {
+interface ChronologicalSectionThreadSectionsProps extends SectionThreadTreeProps {
   builtInSections: ChronologicalBuiltInSidebarSections;
   onCreateThread?: () => void;
   topLevelSectionOrder: readonly SidebarSectionId[];
@@ -1472,8 +1477,14 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
   sortableStyle,
 }: ThreadTreeNodeRowProps) {
   const queuedStarts = useQueuedStarts();
-  const queued = useMemo(() => queueRequestOrder(queuedStarts, node.thread.id), [queuedStarts, node.thread.id]);
-  const partition = useMemo(() => partitionQueuedChildren(node.children, queued), [node.children, queued]);
+  const queued = useMemo(
+    () => queueRequestOrder(queuedStarts, node.thread.id),
+    [queuedStarts, node.thread.id],
+  );
+  const partition = useMemo(
+    () => partitionQueuedChildren(node.children, queued),
+    [node.children, queued],
+  );
   const isCollapsed = collapsedThreadIds.has(node.thread.id);
   const hasChildren = node.children.length > 0 || queued.length > 0;
   const isParent = hasChildren;
@@ -1529,7 +1540,8 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
     () =>
       getThreadRowOptions({
         childActivity: node.stats.childActivity,
-        childCount: node.stats.childCount + queued.length - partition.replacements.size,
+        childCount:
+          node.stats.childCount + queued.length - partition.replacements.size,
         consumeClickSuppression,
         dragBindings,
         depthOffset,
@@ -1636,18 +1648,42 @@ export const ThreadTreeNodeRow = memo(function ThreadTreeNodeRow({
               }}
             />
           ) : null}
-          {showChildren ? queued.map(request => {
-            const replacement = request.taskThreadId ? partition.replacements.get(request.taskThreadId) : null;
-            return <Fragment key={`queued:${request.id}`}>
-              {replacement ? <SectionDndItemRow
-                projectId={rowProjectId} item={replacement} depthOffset={depthOffset}
-                selectedThreadId={selectedThreadIdWithin(replacement, selectedThreadId)}
-                collapsedThreadIds={collapsedThreadIds} collapsedEnvironmentIds={collapsedEnvironmentIds}
-                onProjectSelect={onProjectSelect} onToggleThreadCollapsed={onToggleThreadCollapsed}
-                onToggleEnvironmentCollapsed={onToggleEnvironmentCollapsed} sectionDnd={sectionDnd ?? undefined}
-              /> : <QueuedStartRow row={request} depth={parentRowDepth + 1} onNavigate={onProjectSelect} />}
-            </Fragment>;
-          }) : null}
+          {showChildren
+            ? queued.map((request) => {
+                const replacement = request.taskThreadId
+                  ? partition.replacements.get(request.taskThreadId)
+                  : null;
+                return (
+                  <Fragment key={`queued:${request.id}`}>
+                    {replacement ? (
+                      <SectionDndItemRow
+                        projectId={rowProjectId}
+                        item={replacement}
+                        depthOffset={depthOffset}
+                        selectedThreadId={selectedThreadIdWithin(
+                          replacement,
+                          selectedThreadId,
+                        )}
+                        collapsedThreadIds={collapsedThreadIds}
+                        collapsedEnvironmentIds={collapsedEnvironmentIds}
+                        onProjectSelect={onProjectSelect}
+                        onToggleThreadCollapsed={onToggleThreadCollapsed}
+                        onToggleEnvironmentCollapsed={
+                          onToggleEnvironmentCollapsed
+                        }
+                        sectionDnd={sectionDnd ?? undefined}
+                      />
+                    ) : (
+                      <QueuedStartRow
+                        row={request}
+                        depth={parentRowDepth + 1}
+                        onNavigate={onProjectSelect}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })
+            : null}
           {showChildren &&
           (node.thread.workbenchChildren?.open ?? 0) >= MANY_TASKS_THRESHOLD &&
           (node.thread.boat?.rollup?.shippedToday ?? 0) > 0 ? (
@@ -1871,6 +1907,7 @@ function SectionThreadTreeItems({
 }
 
 export const ProjectThreadTree = memo(function ProjectThreadTree({
+  depthOffset,
   projectId,
   dndParentKey,
   rootItems: providedRootItems,
@@ -1927,6 +1964,7 @@ export const ProjectThreadTree = memo(function ProjectThreadTree({
 
   return (
     <SectionThreadTreeItems
+      depthOffset={depthOffset}
       items={rootItems}
       sectionDnd={dndParentKey !== undefined ? sectionDnd : null}
       projectId={projectId}
@@ -2220,6 +2258,8 @@ function ProjectRowComponent({
   projectRowStyle,
 }: ProjectRowProps) {
   const sdk = useSdk();
+  const team = useTeamState();
+  const teamProject = team?.projects.find((p) => p.bbProjectId === project.id);
   const rename = useSidebarRename({
     kind: "project",
     id: project.id,
@@ -2307,6 +2347,16 @@ function ProjectRowComponent({
         >
           <TopLevelSidebarSection
             label={project.name}
+            labelContent={
+              teamProject ? (
+                <TeamProjectLabel
+                  project={project}
+                  teamProject={teamProject}
+                  team={team!}
+                  onNavigate={onProjectSelect}
+                />
+              ) : undefined
+            }
             dropParentKey={buildSidebarEntitySectionId("project", project.id)}
             labelEditor={rename.editor}
             onRename={rename.startEditingFromDoubleClick}
@@ -2325,6 +2375,7 @@ function ProjectRowComponent({
             sectionStyle={projectRowStyle}
           >
             <ProjectThreadTree
+              depthOffset={teamProject ? 1 : undefined}
               projectId={project.id}
               dndParentKey={buildSidebarEntitySectionId("project", project.id)}
               rootItems={rootItems}

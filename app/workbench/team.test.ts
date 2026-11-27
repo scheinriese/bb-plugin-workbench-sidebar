@@ -1,0 +1,97 @@
+import { expect, it } from "vitest";
+import { teamFixture } from "./team-fixtures.js";
+import {
+  memberPreview,
+  partitionTeamThreads,
+  showTeamProvider,
+} from "./team.js";
+import { applyBoatState } from "./presentation.js";
+it("moves homes once and keeps project work nested without its hidden lead", () => {
+  const { team, threads, states } = teamFixture();
+  const decorated = applyBoatState(
+    threads,
+    new Map(states.map((s) => [s.threadId, s])),
+  );
+  const result = partitionTeamThreads(decorated, team);
+  expect(result.members).toHaveLength(6);
+  expect(result.sections).toHaveLength(4);
+  expect(result.sections.every((t) => t.parentThreadId === null)).toBe(true);
+  expect(
+    result.sections.some((t) => team.hideFromSections.includes(t.id)),
+  ).toBe(false);
+  expect(partitionTeamThreads(threads).sections).toBe(threads);
+  expect(
+    partitionTeamThreads(threads, { ...team, enabled: false }).sections,
+  ).toBe(threads);
+});
+it("keeps deep nesting and non-project member work", () => {
+  const { team, threads } = teamFixture();
+  const base = threads[0];
+  const review = {
+    ...base,
+    id: "review",
+    parentThreadId: "thr_pricing",
+    projectId: "web",
+  };
+  const sub = {
+    ...base,
+    id: "sub",
+    parentThreadId: "review",
+    projectId: "web",
+  };
+  const car = { ...base, id: "car", parentThreadId: "thr_olive" };
+  const result = partitionTeamThreads([...threads, review, sub, car], team);
+  expect(result.sections.find((t) => t.id === "sub")?.parentThreadId).toBe(
+    "review",
+  );
+  expect(result.members.find((t) => t.id === "car")?.parentThreadId).toBe(
+    "thr_olive",
+  );
+});
+it("prioritizes needs-you, activity, unread totals, then last message; project is neutral", () => {
+  const m = teamFixture().team.members[4];
+  expect(memberPreview(m).text).toContain("jobs database key");
+  expect(memberPreview(m, "Web app")).toEqual({
+    text: "in Web app",
+    tone: "neutral",
+  });
+  expect(
+    memberPreview({
+      ...m,
+      preview: { kind: "activity", text: "Working", tone: "neutral" },
+    }).text,
+  ).toBe("Working");
+  expect(
+    memberPreview({
+      ...m,
+      preview: { kind: "last-message", text: "Hello", tone: "neutral" },
+      unread: { messages: 2, cards: 1 },
+    }).text,
+  ).toBe("3 unread");
+});
+it("keeps plain marks; omits Team defaults; always marks reviews and handoffs", () => {
+  const { team, states } = teamFixture();
+  const task = states[0];
+  const member = team.members[0];
+  expect(showTeamProvider(undefined, undefined, undefined, false)).toBe(true);
+  expect(showTeamProvider(task, member, undefined, false)).toBe(false);
+  expect(showTeamProvider(task, undefined, member, false)).toBe(false);
+  expect(
+    showTeamProvider({ ...task, provider: "codex" }, undefined, member, false),
+  ).toBe(true);
+  expect(
+    showTeamProvider({ ...task, role: "review" }, undefined, member, false),
+  ).toBe(true);
+  expect(
+    showTeamProvider(
+      {
+        ...task,
+        handoff: { from: "codex", to: "claude", at: "14:00", reason: "limit" },
+      },
+      undefined,
+      member,
+      false,
+    ),
+  ).toBe(true);
+  expect(showTeamProvider(task, member, undefined, true)).toBe(true);
+});
