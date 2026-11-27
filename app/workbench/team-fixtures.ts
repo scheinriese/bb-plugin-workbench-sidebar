@@ -16,9 +16,9 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     name,
     threadId: `thr_${memberId}`,
     kind: "specialist",
-    avatar: memberId,
-    status: "idle",
-    preview: null,
+    avatar: { initials: name.slice(0, 1), color: "blue" },
+    status: "active",
+    preview: { kind: "last-message", text: "Ready", tone: "neutral" },
     unread: { messages: 0, cards: 0 },
     order: 0,
     backgroundThreadIds: [],
@@ -26,11 +26,13 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
   });
   const team = teamSidebarSchema.parse({
     enabled: true,
+    revision: `example-${time}`,
+    truncated: false,
     yourMove: { count: morning ? 2 : 3, overdue: 0, confirm: morning ? 0 : 1 },
     lead: member("nora", "Nora", {
-      kind: "chief",
+      kind: "lead",
       preview: {
-        kind: "last-message",
+        kind: "needs-you",
         text: morning
           ? "Morning check-in at 09:00"
           : "The car service is booked for Thursday",
@@ -39,31 +41,40 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     }),
     members: [
       member("iris", "Iris", {
-        projectId: "web",
         order: 0,
-        status: morning ? "needs-you" : "waiting",
+        preview: {
+          kind: morning ? "needs-you" : "activity",
+          text: morning
+            ? "Pick a pricing page layout"
+            : "waiting for the build Mac · offline since 14:00",
+          tone: "neutral",
+        },
         backgroundThreadIds: ["thr_pricing"],
       }),
       member("developer", "Developer", { order: 1 }),
       member("writer", "Writer", {
-        projectId: "docs",
         order: 2,
-        status: morning ? "working" : "needs-you",
+        preview: {
+          kind: morning ? "activity" : "needs-you",
+          text: morning
+            ? "Writing the release notes"
+            : "Review the Docs 2.4 release notes",
+          tone: "neutral",
+        },
         backgroundThreadIds: ["thr_notes"],
       }),
       member("olive", "Olive", {
         order: 3,
         preview: {
           kind: "last-message",
-          text: morning ? "Idle" : "Booked Thu 3 Dec, 08:30",
+          text: morning ? "Ready" : "Booked Thu 3 Dec, 08:30",
           tone: "neutral",
         },
       }),
       member("scout", "Scout", {
         order: 4,
-        status: morning ? "idle" : "waiting",
         preview: morning
-          ? null
+          ? { kind: "last-message", text: "Ready", tone: "neutral" }
           : {
               kind: "needs-you",
               text: "Enter the new jobs database key",
@@ -73,20 +84,28 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
       }),
       member("web-lead", "Web app lead", {
         kind: "project-lead",
-        provider: "claude",
-        status: "needs-you",
+        preview: {
+          kind: "needs-you",
+          text: morning
+            ? "Restart the staging API"
+            : "Review and merge the checkout fix",
+          tone: "neutral",
+        },
         backgroundThreadIds: ["thr_checkout"],
       }),
       member("docs-lead", "Docs lead", {
         kind: "project-lead",
-        provider: "claude",
-        status: "working",
+        preview: {
+          kind: "activity",
+          text: "Updating the search index",
+          tone: "neutral",
+        },
         backgroundThreadIds: ["thr_search"],
       }),
     ],
     projects: [
-      { bbProjectId: "web", icon: "Globe", leadThreadId: "thr_web-lead" },
-      { bbProjectId: "docs", icon: "Book", leadThreadId: "thr_docs-lead" },
+      { bbProjectId: "web", icon: "Folder", leadThreadId: "thr_web-lead" },
+      { bbProjectId: "docs", icon: "Folder", leadThreadId: "thr_docs-lead" },
     ],
     hideFromSections: [
       "thr_nora",
@@ -95,8 +114,6 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
       "thr_writer",
       "thr_olive",
       "thr_scout",
-      "thr_web-lead",
-      "thr_docs-lead",
     ],
   });
   const projects = [
@@ -104,7 +121,7 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     makePluginProject({ id: "web", name: "Web app" }),
     makePluginProject({ id: "docs", name: "Docs site" }),
   ];
-  const threads = [team.lead, ...team.members].map((m) =>
+  const threads = [team.lead!, ...team.members].map((m) =>
     makeSidebarThread({
       id: m.threadId,
       projectId:
@@ -124,10 +141,13 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     parentThreadId: string,
     status: SidebarThreadDto["status"],
     text: string,
-    assigneeMemberId: string,
+    ownerId: string,
     role: SidebarThreadDto["role"] = "task",
     provider: "claude" | "codex" = "claude",
   ) {
+    const assignee = team.members.find((m) => m.memberId === ownerId);
+    if (assignee && !assignee.backgroundThreadIds.includes(id))
+      assignee.backgroundThreadIds.push(id);
     threads.push(makeSidebarThread({ id, title, projectId, parentThreadId }));
     states.push({
       threadId: id,
@@ -143,7 +163,6 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
             ? "attention"
             : "neutral",
       },
-      assigneeMemberId,
       hidden: false,
       listedIn: null,
       createdFor: "you",

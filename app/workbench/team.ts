@@ -10,16 +10,17 @@ export function teamMemberFor(
   threadId: string,
 ) {
   return team?.enabled
-    ? [team.lead, ...team.members].find(
-        (member) => member.threadId === threadId,
-      )
+    ? team.lead?.threadId === threadId
+      ? team.lead
+      : team.members.find((member) => member.threadId === threadId)
     : undefined;
 }
+
 export function memberPreview(member: TeamMemberDto, projectName?: string) {
-  if (member.kind === "chief")
-    return member.preview?.kind === "last-message"
-      ? member.preview
-      : { text: "", tone: "neutral" as const };
+  // The engine tags the chief preview needs-you while asks exist, but its text
+  // is still her latest line. Only the pill draws attention on the tile.
+  if (member.kind === "lead")
+    return { text: member.preview.text, tone: "neutral" as const };
   // Project work, including its asks, is drawn once under the project, not the person.
   if (projectName)
     return { text: `in ${projectName}`, tone: "neutral" as const };
@@ -27,23 +28,43 @@ export function memberPreview(member: TeamMemberDto, projectName?: string) {
     return member.preview;
   const unread = member.unread.messages + member.unread.cards;
   if (unread) return { text: `${unread} unread`, tone: "neutral" as const };
-  return (
-    member.preview ?? {
-      text:
-        (
-          {
-            idle: "idle",
-            paused: "paused · stopped early",
-            stalled: "stalled · nudged",
-            error: "failed",
-            "needs-you": "needs you",
-            attention: "needs attention",
-          } as Record<string, string>
-        )[member.status] ?? member.status,
-      tone: "neutral" as const,
-    }
-  );
+  return member.preview;
 }
+
+/** Lifecycle (active/paused/archived) is not measured work activity. */
+export type TeamVisualState =
+  "idle" | "working" | "waiting" | "paused" | "quiet" | "failed";
+export function teamMemberVisualState(
+  member: TeamMemberDto,
+  states: ReadonlyMap<string, SidebarThreadDto>,
+  threadId?: string,
+): TeamVisualState {
+  if (member.status === "paused") return "paused";
+  if (member.status === "archived") return "quiet";
+  const rows = (
+    threadId ? [threadId] : [member.threadId, ...member.backgroundThreadIds]
+  ).flatMap((id) => states.get(id) ?? []);
+  if (rows.some((row) => row.status === "broken")) return "failed";
+  if (
+    rows.some(
+      (row) =>
+        ["working", "review"].includes(row.status) && row.moving !== false,
+    )
+  )
+    return "working";
+  if (
+    rows.some(
+      (row) =>
+        row.status === "waiting-reset" ||
+        (row.status === "stopped" &&
+          /^waiting\b/i.test(row.secondLine?.text ?? "")),
+    )
+  )
+    return "waiting";
+  if (rows.some((row) => row.status === "stopped")) return "paused";
+  return "idle";
+}
+
 export function showTeamProvider(
   boat: SidebarThreadDto | undefined,
   member: TeamMemberDto | undefined,
@@ -54,12 +75,10 @@ export function showTeamProvider(
   if (member) return false;
   if (boat?.role === "review") return true;
   if (!assignee) return true;
-  return (
-    !!boat?.handoff ||
-    (!!boat?.provider &&
-      boat.provider !== (boat.defaultProvider ?? assignee.provider ?? "claude"))
-  );
+  // v1 has provider facts, but no handoff history or member default provider.
+  return !!boat?.provider && boat.provider !== "claude";
 }
+
 /** Relocate existing chats only. No synthetic threads, no mutations to host data. */
 export function partitionTeamThreads(
   threads: readonly SidebarThread[],
@@ -68,9 +87,10 @@ export function partitionTeamThreads(
   if (!team?.enabled)
     return { sections: threads, members: [] as SidebarThread[] };
   const homes = new Set(
-    [team.lead, ...team.members.filter((m) => m.kind !== "project-lead")].map(
-      (m) => m.threadId,
-    ),
+    [
+      ...(team.lead ? [team.lead] : []),
+      ...team.members.filter((m) => m.kind !== "project-lead"),
+    ].map((m) => m.threadId),
   );
   const hidden = new Set([
     ...team.hideFromSections,
@@ -92,21 +112,13 @@ export function partitionTeamThreads(
       seen.add(parent);
       parent = byId.get(parent)?.parentThreadId ?? null;
     }
-    const owner = team.members.find((m) =>
-      m.backgroundThreadIds.includes(thread.id),
-    );
-    return owner?.projectId && projectIds.has(owner.projectId)
-      ? owner.projectId
-      : undefined;
+    return undefined;
   };
   const projectByThread = new Map(threads.map((t) => [t.id, projectFor(t)]));
   const memberProjectByHome = new Map(
     team.members.map((m) => [
       m.threadId,
-      m.projectId ??
-        m.backgroundThreadIds
-          .map((id) => projectByThread.get(id))
-          .find(Boolean),
+      m.backgroundThreadIds.map((id) => projectByThread.get(id)).find(Boolean),
     ]),
   );
   const belongsToMember = (thread: SidebarThread) => {

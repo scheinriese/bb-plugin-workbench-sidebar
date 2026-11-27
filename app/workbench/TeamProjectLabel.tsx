@@ -17,7 +17,7 @@ export function TeamProjectLabel({
 }) {
   const navigate = useBbNavigate();
   const calm = useAtomValue(calmFacesAtom);
-  const lead = [team.lead, ...team.members].find(
+  const lead = [...(team.lead ? [team.lead] : []), ...team.members].find(
     (m) => m.threadId === teamProject.leadThreadId,
   );
   const glyph = /book|docs/i.test(teamProject.icon)

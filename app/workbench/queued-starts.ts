@@ -16,9 +16,10 @@ export function queueHref(row: SidebarQueuedStartDto) {
 export function queueSecondLine(row: SidebarQueuedStartDto) {
   if (row.state === "started") return "Task started · open task";
   if (row.state === "dispatching") return "Starting…";
+  if (row.secondLine) return row.secondLine.text;
   const reset = row.resetsAt ? new Date(row.resetsAt) : null;
   const clock = reset && Number.isFinite(reset.getTime())
-    ? reset.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase() : null;
+    ? reset.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : null;
   return `Waits for reset${clock ? ` · ${clock}` : ""}`;
 }
 

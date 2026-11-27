@@ -1,31 +1,14 @@
 import { useEffect, useId, useMemo, useRef } from "react";
 import { teamAvatarImages } from "../../assets/team/avatar-data.js";
+import { type TeamVisualState } from "./team.js";
 import type { TeamMemberDto } from "../../shared/boat-sidebar.js";
 
 export function avatarIdentity(member: TeamMemberDto) {
-  // Avatar is a bounded asset key, never a URL or arbitrary SVG/HTML.
-  const key = member.avatar
-    .replace(/^(h[23]\/)?(face-)?/, "")
-    .replace(
-      /-(idle|working|needs|attention|quiet|paused|stalled|failed)-(dark|light)(\.svg)?$/,
-      "",
-    );
-  if (
-    [
-      "nora",
-      "iris",
-      "dev",
-      "writer",
-      "olive",
-      "scout",
-      "lead-web",
-      "lead-docs",
-    ].includes(key)
-  )
-    return key;
-  if (member.kind === "chief") return "nora";
+  // The v1 avatar object is metadata, never an SVG key or a remote URL.
+  // Pick only bundled role silhouettes, with a neutral Developer fallback.
+  if (member.kind === "lead") return "nora";
   if (member.kind === "project-lead")
-    return /docs/i.test(member.avatar + member.name) ? "lead-docs" : "lead-web";
+    return /docs/i.test(member.name) ? "lead-docs" : "lead-web";
   return /developer/i.test(member.name)
     ? "dev"
     : (/iris|writer|olive|scout/i.exec(member.name)?.[0].toLowerCase() ??
@@ -77,6 +60,11 @@ export function TeamAvatar({
   task = false,
   badge = true,
   providerLabel,
+  visualState = member.status === "active"
+    ? "idle"
+    : member.status === "archived"
+      ? "quiet"
+      : "paused",
   orbitMembers = [],
 }: {
   member: TeamMemberDto;
@@ -86,6 +74,7 @@ export function TeamAvatar({
   task?: boolean;
   badge?: boolean;
   providerLabel?: string;
+  visualState?: TeamVisualState;
   orbitMembers?: readonly TeamMemberDto[];
 }) {
   const root = useRef<HTMLSpanElement>(null);
@@ -129,13 +118,8 @@ export function TeamAvatar({
       window.removeEventListener("blur", blur);
     };
   }, [active, satellites.length]);
-  let state: string =
-    (
-      { error: "failed", waiting: "idle", "needs-you": "idle" } as Record<
-        string,
-        string
-      >
-    )[member.status] ?? member.status;
+  // Declared waits have no badge; the asset set represents them with idle.
+  let state: string = visualState === "waiting" ? "idle" : visualState;
   if (!badge || (task && working)) state = "idle";
   if (chief && !satellites.length) state = "quiet";
   return (
@@ -148,8 +132,8 @@ export function TeamAvatar({
       data-task={task || undefined}
       data-working={(task && working) || undefined}
       role="img"
-      title={providerLabel ?? member.provider ?? undefined}
-      aria-label={`${member.name}, ${member.status}`}
+      title={providerLabel}
+      aria-label={`${member.name}, ${visualState}`}
     >
       {active && (
         <>

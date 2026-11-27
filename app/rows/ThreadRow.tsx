@@ -4,6 +4,7 @@ import {
   memberPreview,
   teamMemberFor,
   showTeamProvider,
+  teamMemberVisualState,
 } from "../workbench/team.js";
 import {
   calmFacesAtom,
@@ -599,13 +600,11 @@ function ThreadRowComponent({
   const calmFaces = useAtomValue(calmFacesAtom);
   const everyProvider = useAtomValue(showProviderOnEveryRowAtom);
   const member = teamMemberFor(team, thread.id);
-  const assignee = team?.members.find(
-    (m) =>
-      m.memberId === thread.boat?.assigneeMemberId ||
-      m.backgroundThreadIds.includes(thread.id),
+  const assignee = team?.members.find((m) =>
+    m.backgroundThreadIds.includes(thread.id),
   );
   const projectName = useSidebarProjectName(
-    member?.projectId ?? thread.workbenchTeamProjectId ?? null,
+    thread.workbenchTeamProjectId ?? null,
   );
   const memberLine = member ? memberPreview(member, projectName) : null;
   const providerVisible =
@@ -665,7 +664,7 @@ function ThreadRowComponent({
   const rowClassName = cn(
     "wb-row",
     member && "wb-team-member",
-    member?.kind === "chief" && "wb-team-chief",
+    member?.kind === "lead" && "wb-team-chief",
     isNew && "wb-row-new",
     secondLine && "wb-two-line",
     isReview && "wb-review",
@@ -835,32 +834,19 @@ function ThreadRowComponent({
           >
             {avatar && (
               <TeamAvatar
-                member={
-                  assignee && !member
-                    ? {
-                        ...assignee,
-                        status:
-                          thread.boat?.status === "broken"
-                            ? "failed"
-                            : thread.boat?.status === "stopped"
-                              ? /^waiting\b/i.test(
-                                  thread.boat.secondLine?.text ?? "",
-                                )
-                                ? "waiting"
-                                : "paused"
-                              : workbenchWorking
-                                ? "working"
-                                : "idle",
-                      }
-                    : avatar
-                }
+                member={avatar}
+                visualState={teamMemberVisualState(
+                  avatar,
+                  boatStates,
+                  member ? undefined : thread.id,
+                )}
                 calm={calmFaces}
-                chief={member?.kind === "chief"}
+                chief={member?.kind === "lead"}
                 working={workbenchWorking}
                 task={!member}
                 providerLabel={provider?.displayName ?? providerId}
                 orbitMembers={team?.members.filter(
-                  (m) => m.status === "working",
+                  (m) => teamMemberVisualState(m, boatStates) === "working",
                 )}
               />
             )}
@@ -893,10 +879,10 @@ function ThreadRowComponent({
             ) : null}
             <span className="wb-text-column">
               <span className="wb-title-line">
-                {member?.kind === "chief" && hasComposerDraft && (
+                {member?.kind === "lead" && hasComposerDraft && (
                   <span className="wb-chief-draft">Draft</span>
                 )}
-                {member?.kind === "chief" && (
+                {member?.kind === "lead" && (
                   <span className="wb-chief-role"> · chief of staff</span>
                 )}
                 {isEditing ? (
@@ -919,15 +905,6 @@ function ThreadRowComponent({
                     ) : (
                       <ThreadTitle threadId={thread.id} />
                     )}
-                  </span>
-                )}
-                {thread.boat?.handoff && (
-                  <span
-                    className="wb-handoff"
-                    title={`${thread.boat.handoff.at} · ${thread.boat.handoff.reason}`}
-                  >
-                    {thread.boat.handoff.from === "claude" ? "Claude" : "Codex"}{" "}
-                    › {thread.boat.handoff.to === "claude" ? "Claude" : "Codex"}
                   </span>
                 )}
                 {parentOptions &&
@@ -1080,7 +1057,7 @@ function ThreadRowComponent({
                   !trailingIndicatorState.hasUnsubmittedDraft &&
                   !pluginThreadRowStatus ? (
                   <span className="wb-member-unread">
-                    {member.kind !== "chief" &&
+                    {member.kind !== "lead" &&
                       member.unread.messages + member.unread.cards > 0 && (
                         <span
                           aria-label={`${member.unread.messages} unread messages, ${member.unread.cards} unanswered cards`}
@@ -1088,8 +1065,9 @@ function ThreadRowComponent({
                           {member.unread.messages + member.unread.cards}
                         </span>
                       )}
-                    {member.kind !== "chief" &&
-                      member.preview?.kind === "needs-you" &&
+                    {member.kind !== "lead" &&
+                      member.preview.kind === "needs-you" &&
+                      member.preview.tone === "attention" &&
                       !projectName && (
                         <span
                           className="wb-dot"

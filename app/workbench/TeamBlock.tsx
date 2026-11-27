@@ -1,6 +1,6 @@
 import { useBbNavigate } from "@get-bb/plugin-sdk/app";
 import { useAtom, useAtomValue } from "jotai";
-import { useTeamState } from "./BoatState.js";
+import { useBoatState, useTeamState } from "./BoatState.js";
 import {
   collapsedProjectIdsAtom,
   teamCollapsedAtom,
@@ -35,6 +35,7 @@ export function TeamBlock({
 }) {
   const navigate = useBbNavigate();
   const team = useTeamState();
+  const boatStates = useBoatState();
   useEffect(() => {
     if (!team?.enabled) return;
     const update = () =>
@@ -61,23 +62,17 @@ export function TeamBlock({
   const hidden = useAtomValue(sidebarHiddenGroupsAtom);
   const [projectOrder, setProjectOrder] = useAtom(sidebarSectionOrderAtom);
   if (!team?.enabled) return null;
-  const chief = threads.filter((t) => t.id === team.lead.threadId);
-  const members = threads.filter((t) => t.id !== team.lead.threadId);
+  const chief = threads.filter((t) => t.id === team.lead?.threadId);
+  const members = threads.filter((t) => t.id !== team.lead?.threadId);
   const order = new Map(team.members.map((m) => [m.threadId, m.order]));
   const compareThreads = (a: SidebarThread, b: SidebarThread) =>
     (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
   const docked = team.members
     .filter(
       (m) =>
-        m.status === "needs-you" ||
-        m.preview?.kind === "needs-you" ||
-        projects.some((p) =>
-          p.threads.some(
-            (t) =>
-              t.boat?.status === "needs-you" &&
-              (t.boat.assigneeMemberId === m.memberId ||
-                m.backgroundThreadIds.includes(t.id)),
-          ),
+        m.preview.kind === "needs-you" ||
+        m.backgroundThreadIds.some(
+          (id) => boatStates.get(id)?.status === "needs-you",
         ),
     )
     .slice(-3);
@@ -165,11 +160,11 @@ export function TeamBlock({
                 )}
                 <a
                   className="wb-your-move"
-                  href="/plugins/boat/cloud-agents/today"
+                  href="/plugins/boat/cloud-agents"
                   onClick={(event) => {
                     event.preventDefault();
                     navigate.toPluginPanel("cloud-agents", {
-                      subPath: "today",
+                      subPath: "",
                     });
                     onNavigate?.();
                   }}

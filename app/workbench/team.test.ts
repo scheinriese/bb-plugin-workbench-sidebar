@@ -4,6 +4,7 @@ import {
   memberPreview,
   partitionTeamThreads,
   showTeamProvider,
+  teamMemberVisualState,
 } from "./team.js";
 import { applyBoatState } from "./presentation.js";
 it("moves homes once and keeps project work nested without its hidden lead", () => {
@@ -20,9 +21,7 @@ it("moves homes once and keeps project work nested without its hidden lead", () 
     result.sections.some((t) => team.hideFromSections.includes(t.id)),
   ).toBe(false);
   expect(partitionTeamThreads(threads).sections).toBe(threads);
-  expect(
-    partitionTeamThreads(threads, { ...team, enabled: false }).sections,
-  ).toBe(threads);
+  expect(partitionTeamThreads(threads, undefined).sections).toBe(threads);
 });
 it("keeps deep nesting and non-project member work", () => {
   const { team, threads } = teamFixture();
@@ -69,7 +68,7 @@ it("prioritizes needs-you, activity, unread totals, then last message; project i
     }).text,
   ).toBe("3 unread");
 });
-it("keeps plain marks; omits Team defaults; always marks reviews and handoffs", () => {
+it("keeps plain marks; omits Team defaults; always marks reviews", () => {
   const { team, states } = teamFixture();
   const task = states[0];
   const member = team.members[0];
@@ -82,17 +81,6 @@ it("keeps plain marks; omits Team defaults; always marks reviews and handoffs", 
   expect(
     showTeamProvider({ ...task, role: "review" }, undefined, member, false),
   ).toBe(true);
-  expect(
-    showTeamProvider(
-      {
-        ...task,
-        handoff: { from: "codex", to: "claude", at: "14:00", reason: "limit" },
-      },
-      undefined,
-      member,
-      false,
-    ),
-  ).toBe(true);
   expect(showTeamProvider(task, member, undefined, true)).toBe(true);
 });
 it("resolves project ownership through hidden leads without changing host project facts", () => {
@@ -104,7 +92,6 @@ it("resolves project ownership through hidden leads without changing host projec
     parentThreadId: "thr_web-lead",
   };
   team.members[0]!.backgroundThreadIds = ["cross"];
-  team.members[0]!.projectId = undefined;
   const result = partitionTeamThreads([...threads, worker], team);
   expect(
     result.sections.find((t) => t.id === "cross")?.workbenchTeamProjectId,
@@ -115,4 +102,38 @@ it("resolves project ownership through hidden leads without changing host projec
   expect(
     result.members.find((t) => t.id === "thr_iris")?.workbenchTeamProjectId,
   ).toBe("web");
+});
+
+it("does not treat active lifecycle as measured work activity", () => {
+  const { team, states } = teamFixture();
+  const idle = team.members[1]!;
+  const working = team.members[6]!;
+  const boat = new Map(states.map((s) => [s.threadId, s]));
+  expect(teamMemberVisualState(idle, boat)).toBe("idle");
+  expect(teamMemberVisualState(working, boat)).toBe("working");
+  expect(teamMemberVisualState({ ...working, status: "paused" }, boat)).toBe(
+    "paused",
+  );
+  expect(teamMemberVisualState({ ...working, status: "archived" }, boat)).toBe(
+    "quiet",
+  );
+});
+it("keeps the chief's latest line even when the engine labels its kind needs-you", () => {
+  const lead = teamFixture().team.lead!;
+  expect(lead.preview.kind).toBe("needs-you");
+  expect(memberPreview(lead)).toEqual({
+    text: "The car service is booked for Thursday",
+    tone: "neutral",
+  });
+});
+
+it("uses a task's own measured state instead of another assignment's activity", () => {
+  const { team, states } = teamFixture();
+  const member = {
+    ...team.members[0]!,
+    backgroundThreadIds: ["thr_pricing", "thr_search"],
+  };
+  const boat = new Map(states.map((row) => [row.threadId, row]));
+  expect(teamMemberVisualState(member, boat)).toBe("working");
+  expect(teamMemberVisualState(member, boat, "thr_pricing")).toBe("waiting");
 });

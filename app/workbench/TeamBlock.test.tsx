@@ -26,6 +26,8 @@ async function mount({
   enabled = true,
   every = false,
   drafts = [] as string[],
+  version = 1,
+  blockVersion = undefined as number | undefined,
   modify = (_f: ReturnType<typeof teamFixture>) => {},
 } = {}) {
   setPreferencesMirrorStorageForTest(null);
@@ -61,11 +63,15 @@ async function mount({
       plugins: {
         callRpc: async () =>
           sidebarRpcMethods.sidebarState.output.parse({
-            version: 1,
+            version,
             revision: "fixture",
             threads: f.states,
             truncated: false,
-            team: { ...f.team, enabled },
+            team: {
+              ...f.team,
+              enabled,
+              ...(blockVersion === undefined ? {} : { version: blockVersion }),
+            },
           }) as never,
       },
     },
@@ -84,10 +90,11 @@ it.each([true, false])(
     );
     fireEvent.click(count);
     expect(onNavigate).toHaveBeenCalledOnce();
+    expect(count.getAttribute("href")).toBe("/plugins/boat/cloud-agents");
     expect(inspection.navigateCalls).toContainEqual({
       method: "toPluginPanel",
       path: "cloud-agents",
-      options: { subPath: "today" },
+      options: { subPath: "" },
     });
     expect(
       document.querySelectorAll('[data-sidebar-thread-id="thr_nora"]'),
@@ -246,24 +253,18 @@ it("renders project → task → review → sub-thread with native multi-level g
   expect(detail.style.paddingLeft).toBe("82px");
   expect(review.querySelector(".wb-provider")).not.toBeNull();
 });
-it("renders the handoff chip with its time and reason, keeping the assignee face", async () => {
+it("keeps the assignee face and marks a non-default provider from the real thread DTO", async () => {
   await mount({
     modify: (f) => {
-      f.states[1]!.handoff = {
-        from: "claude",
-        to: "codex",
-        at: "14:05",
-        reason: "Usage limit",
-      };
       f.states[1]!.provider = "codex";
     },
   });
-  const chip = await screen.findByText("Claude › Codex");
-  expect(chip.title).toBe("14:05 · Usage limit");
-  expect(
-    chip.closest(".wb-row")!.querySelector(".wb-team-avatar"),
-  ).not.toBeNull();
-  expect(chip.closest(".wb-row")!.querySelector(".wb-provider")).not.toBeNull();
+  await screen.findByText(/chief of staff/);
+  const row = document
+    .querySelector('[data-sidebar-thread-id="thr_pricing"]')!
+    .closest(".wb-row")!;
+  expect(row.querySelector(".wb-team-avatar")).not.toBeNull();
+  expect(row.querySelector(".wb-provider")).not.toBeNull();
 });
 
 it("keeps native draft signals on member rows and the chief tile", async () => {
@@ -276,4 +277,93 @@ it("keeps native draft signals on member rows and the chief tile", async () => {
   expect(
     scout?.querySelector('[aria-label="Unsubmitted draft"]'),
   ).not.toBeNull();
+});
+
+it("opens the actual chief home from the producer's thread pointer", async () => {
+  const { f, onNavigate } = await mount();
+  await screen.findByText(/chief of staff/);
+  const home = screen.getByLabelText("Open Nora");
+  expect(home.getAttribute("data-sidebar-thread-id")).toBe(
+    f.team.lead!.threadId,
+  );
+  expect(home.getAttribute("href")).toBe(
+    f.threads.find((t) => t.id === f.team.lead!.threadId)!.href,
+  );
+  fireEvent.click(home);
+  expect(onNavigate).toHaveBeenCalledOnce();
+});
+it("renders other Team data when the chief home does not exist yet", async () => {
+  await mount({
+    modify: (f) => {
+      f.team.lead = null;
+      f.threads.splice(
+        f.threads.findIndex((t) => t.id === "thr_nora"),
+        1,
+      );
+      f.team.hideFromSections = f.team.hideFromSections.filter(
+        (id) => id !== "thr_nora",
+      );
+    },
+  });
+  await screen.findByLabelText("Open Web app lead chat");
+  expect(document.querySelector(".wb-chief-tile")).toBeNull();
+  expect(
+    document.querySelector('[data-sidebar-thread-id="thr_iris"]'),
+  ).not.toBeNull();
+});
+it.each([{ version: 2 }, { blockVersion: 2 }])(
+  "restores existing rows for unsupported versions: %j",
+  async (options) => {
+    await mount(options);
+    expect(document.querySelector(".wb-team-block")).toBeNull();
+    expect(
+      document.querySelector('[data-sidebar-thread-id="thr_nora"]'),
+    ).not.toBeNull();
+  },
+);
+it("refreshes an additive Team revision without depending on an outer revision change", async () => {
+  const { f } = await mount();
+  await screen.findByText(/chief of staff/);
+  f.team.yourMove.count = 4;
+  f.team.revision = "next-team-revision";
+  fireEvent(document, new Event("visibilitychange"));
+  await screen.findByLabelText("4 need you. Open Team Today");
+});
+
+it("keeps a projectless blocked-task ask on the task instead of duplicating it from the member preview or cards", async () => {
+  await mount({
+    modify: (f) => {
+      const olive = f.team.members.find((m) => m.memberId === "olive")!;
+      olive.preview = {
+        kind: "needs-you",
+        text: "Review the car service details",
+        tone: "neutral",
+      };
+      olive.unread.cards = 1;
+      olive.backgroundThreadIds = ["thr_car"];
+      f.threads.push(
+        makeSidebarThread({
+          id: "thr_car",
+          title: "Car service details",
+          projectId: "personal",
+          parentThreadId: olive.threadId,
+        }),
+      );
+      f.states.push({
+        ...f.states[0]!,
+        threadId: "thr_car",
+        parentThreadId: olive.threadId,
+        secondLine: { text: olive.preview.text, tone: "attention" },
+      });
+    },
+  });
+  await screen.findByText("Car service details");
+  const olive = document
+    .querySelector('[data-sidebar-thread-id="thr_olive"]')!
+    .closest(".wb-row");
+  const car = document
+    .querySelector('[data-sidebar-thread-id="thr_car"]')!
+    .closest(".wb-row");
+  expect(olive?.querySelector('[aria-label="Needs you"]')).toBeNull();
+  expect(car?.querySelector('[aria-label="Needs you"]')).not.toBeNull();
 });

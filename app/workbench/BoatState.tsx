@@ -39,6 +39,7 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let disposed = false;
     let revision: string | null = null;
+    let teamRevision: string | undefined;
     let timer: ReturnType<typeof setTimeout>;
     let controller: AbortController | null = null;
     let inFlight = false;
@@ -53,13 +54,19 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
           method: "sidebarState",
           input: {
             version: 1,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             timezoneOffsetMinutes: new Date().getTimezoneOffset(),
           },
           outputSchema: sidebarRpcMethods.sidebarState.output,
           signal: controller.signal,
         });
-        if (!disposed && result.revision !== revision) {
+        if (
+          !disposed &&
+          (result.revision !== revision ||
+            result.team?.revision !== teamRevision)
+        ) {
           revision = result.revision;
+          teamRevision = result.team?.revision;
           setState(new Map(result.threads.map((row) => [row.threadId, row])));
           setQueued(result.queuedStarts ?? []);
           setTeam(result.team?.enabled ? result.team : undefined);
@@ -68,6 +75,7 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
         // Missing/disabled/older Boat and invalid responses quietly restore generic BB.
         if (!disposed) {
           revision = null;
+          teamRevision = undefined;
           setTeam(undefined);
           setState((previous) => (previous.size ? new Map() : previous));
           setQueued((previous) => (previous.length ? [] : previous));
