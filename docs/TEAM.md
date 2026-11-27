@@ -22,9 +22,48 @@ bb plugin install <checkout>
 
 `<checkout>` means this repository's checkout directory. The install command
 was **not** run by the task agent: it would reach the live bb instance.
-Rollback without changing any chats: `bb plugin disable workbench-sidebar`.
-To roll back just this version, check out the prior reviewed revision, rebuild,
-and let the operator reinstall that checkout. No host thread data is migrated.
+### Roll back to Workbench 0.1.3 (operator only)
+
+Disabling Workbench restores bb's native sidebar; **it is not a version
+rollback**. To keep Workbench and roll back this Team change, reinstall its
+previous source revision (the 0.1.3 package at `c88fd56`):
+
+```sh
+# In the repository, create a separate rollback checkout; keep team intact.
+git worktree add --detach ../workbench-sidebar-0.1.3 c88fd5691f207ec83e635d68203c77ae97a53e4a
+cd ../workbench-sidebar-0.1.3
+npm ci --ignore-scripts
+npm rebuild better-sqlite3
+npm run build
+bb plugin install "$PWD"
+```
+
+This is the concrete source rollback for `workbench-sidebar@0.1.3`; no npm
+publication or version tag is assumed. A previous reviewed source checkout
+can be built and installed the same way. Main ignores the new Team preference
+keys. No chats, sections or host thread data are migrated or deleted.
+
+**Does a path install replace a URL install? No, not on bb 0.50.1.** The same
+plugin id cannot be registered from a different source kind: bb refuses the
+install and asks for removal first. A path-to-path reinstall/move of the same
+id is supported and retains the registration's settings. See bb's
+[install registration checks](https://github.com/get-bb/bb/blob/desktop-v0.50.1/apps/server/src/services/plugins/plugin-registration.ts).
+For an existing URL/catalog installation, the operator must explicitly switch
+sources. First export the sidebar layout outside the repository:
+
+```sh
+bb workbench-sidebar prefs list --json > "$HOME/workbench-sidebar-prefs.json"
+# Only when switching URL/catalog ↔ path sources:
+bb plugin remove workbench-sidebar
+bb plugin install <built-checkout>
+```
+
+Removal clears plugin settings/secrets/schedules; back up before doing it.
+Restore layout values if needed using `bb workbench-sidebar prefs set <key>
+'<JSON value>'` from the saved JSON. On 0.1.3 omit the unavailable `calmFaces`,
+`teamCollapsed` and `showProviderOnEveryRow` keys. Do not remove any bb database
+or chat data. These commands are instructions for the operator: none were run
+by the task agent against a live bb instance.
 
 Organize → Rows → **Show provider on every row** is off by default.
 Organize → Appearance → **Calm faces** selects H2 instead of H3 Orbit.
@@ -37,19 +76,18 @@ open existing home chats; project header links open existing lead chats.
 
 The parser and types live in `shared/boat-sidebar.ts`; `shared/team-sidebar.ts`
 only re-exports them. They match Harbormaster `contract-team.ts` and
-`docs/team/SIDEBAR-DTO.md` at commit `e0dce6d` on branch
+`docs/team/SIDEBAR-DTO.md` at commit `0b2a349` on branch
 `boat/7db539cc-build-team-phase-1a-engine-asks-and-team`.
 
-**Versioning:** this is **Team DTO v1**, carried by the existing
-`sidebarState({version: 1})` / response `version: 1` envelope. There is **no
-separate Team version field**. Missing or disabled Team, malformed required
-fields, or a future explicit unsupported Team version are ignored without
-losing valid Boat rows. An unsupported outer response version restores the
-normal BB sidebar. Unknown additive fields are stripped; v1 required fields
-are not filled in with speculative defaults.
+**Versioning:** the outer `sidebarState` response and nested Team projection
+both require **`version: 1`**. Missing or disabled Team, a missing/unsupported
+nested version, or malformed retained data is ignored without losing valid
+Boat rows. An unsupported outer response version restores the normal BB
+sidebar. Unknown additive fields are stripped.
 
 ```ts
 type Team = {
+  version: 1;
   enabled: true;
   yourMove: { count: number; overdue: number; confirm: number };
   projects: { bbProjectId: string; icon: string; leadThreadId: string }[];
@@ -77,11 +115,14 @@ type Member = {
 };
 ```
 
-All fields are required, except the additive `team` block itself. `lead` can
-be null. Counts are nonnegative integers and order is an integer, exactly as
-in the producer's schema. Root v1 keeps its existing 2,000-thread and
-200-queued-start bounds. Team has its own revision and truncation indicator;
-changes to that revision refresh Team even if the outer revision is unchanged.
+All fields are required, except the additive `team` block itself; `lead` can
+be null. IDs are nonempty and at most 200 characters, names 40, preview text
+160, initials 8, colour 32, glyph 64, and revision 64. Counts are nonnegative
+integers and order is an integer. Oversized arrays are **sliced before
+validation**: members/projects 200, hidden ids 201, backgrounds 100 per member.
+Omissions set `truncated: true`, retaining the chief and the complete needs-you
+count. Root v1 retains its 2,000-thread and 200-queued-start bounds. Changes to
+Team's own revision refresh it even if the outer revision is unchanged.
 
 `status` is a **member lifecycle**, not work activity: active does not imply
 working. Avatar activity comes only from the existing Boat thread status and
@@ -91,9 +132,13 @@ selects only its own bundled H3/H2 role silhouettes.
 
 There are no per-member project/provider fields, nor thread assignment/default-
 provider/handoff fields, in the engine's v1 DTO. The provisional fields have
-been removed from the parser and all consumers. `backgroundThreadIds`, actual
-BB projects and parent links identify ownership and project placement without
-rewriting host project facts. Existing thread provider facts still drive
+been removed from the parser and all consumers. `leadThreadId`, member homes, and `backgroundThreadIds` plus their descendants
+identify ownership. **A matching BB project id alone never makes a chat Team
+work.** Only explicitly owned work roots may use their host project to select
+a unique lead; ambiguous shared-project work stays with its member unless
+ancestry identifies a lead. Each lead has its own section/disclosure, even
+when two leads share a BB project. Plain chats retain native grouping and
+custom sections. Host project facts are never rewritten. Existing thread provider facts still drive
 review and non-default provider marks (Claude is the sidebar's default).
 V1 cannot supply a truthful handoff-history chip, so none is invented.
 
@@ -116,18 +161,38 @@ Agent/message preview text is displayed as supplied, not rewritten.
 
 ## Presentation and evidence
 
-H3/H2 SVGs are copied from the upstream design handoff at `659f604`, unchanged,
-under `assets/team/`. `node scripts/team-assets.mjs` rebuilds the trusted inline
-SVG module (bb's build has no CSS SVG loader). No placeholders remain.
-Unknown member names use the Developer silhouette, never external resources.
-Dark/light variants, baked state badges, 18 px dock discs with a 10 px step,
-64 × 50 orbit slot, 64 px tile, static reduced-motion states and background/
-unfocused pauses are implemented. The orbit uses one rAF loop and a 36 s lap.
-H2 has no orbit/dock; hover provides breathe/blink/glance.
+H3/H2 SVGs are copied from the upstream design handoff at `659f604` under
+`assets/team/`. Only the chief kind identifies a named face in the current DTO;
+its bundled H3/H2 artwork is fetched once via the read-only `teamArtwork` RPC
+when Team is enabled. It is returned as bounded data-image URIs and displayed
+as inert images, never injected RPC markup. No artwork request or SVG table
+is downloaded with Team off. The old bb 0.50.1 builder inlines dynamic imports,
+so using `import()` alone would not defer the SVG bytes.
+
+The DTO has no specialist role selector. Unknown specialists use a generic
+face generated from their stable member id, not names, initials or fixture
+identities. Project-lead kinds use a box face with their explicit project glyph.
+Renaming a member never changes the face. H2 retains no orbit or dock. Orbit
+rAF is cancelled under reduced motion, hidden documents and blurred windows,
+then resumed on the corresponding event. The count remains visible if the
+chief home is missing or filtered out, and the chief's accessible name is
+"Nora, chief of staff" (or the configured chief name).
+
+The build finishes with conservative Terser minification, including an explicit
+allow-list of **private in-repo view properties only**. All quoted properties
+and every property name present in the installed public SDK types are protected;
+wire/DOM/SDK names are never included. `npm run check:bundle` enforces the measured
+same-toolchain main baseline of 511,138 eager bytes and verifies the artwork table
+is absent. The compiled-artifact smoke test uses only declared public packages
+as test-host runtime slots; no private host API is used by the plugin.
+Run `npm run build && npm run check:bundle && npm run test:built` for that
+additional shipped-artifact QA. The ordinary suite skips artifact QA when no
+build has been requested, so it also works in a fresh checkout.
 
 The orbit and dock are driven by measured Boat activity and assignment ownership, not
 by a clock or hardcoded snapshot. Project asks stay on blocked work rows,
 not repeated on member rows. Projectless work remains below its member.
+Large Team groups use the same first-crossing rollup collapse as native groups.
 Project tasks use the existing recursive tree, context menus, pinning, drafts,
 new-thread action, collapse preferences and hidden-groups/More controls.
 
@@ -140,7 +205,7 @@ __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.on.boat.dev \
   --host 0.0.0.0 --port 4173
 ```
 
-Open `/`, `/?time=09:00`, `/?light`, `/?phone`, or `/?calm` on the preview host.
+Open `/`, `/?time=09:00`, `/?light`, `/?phone`, `/?calm`, or `/?off` on the preview host.
 Its surrounding chrome and named icon stand-ins are preview-only. Fictional
 fixtures come from `EXAMPLE-DAY.md` (14:30 Nora preview follows the later
 latest-line decision). Live installation screenshots remain operator-owned.
@@ -148,6 +213,7 @@ latest-line decision). Live installation screenshots remain operator-owned.
 ### Known limits
 
 - V1 does not expose handoff history or per-member default providers.
+- Generic specialist faces are used until the DTO carries an explicit role/art selector.
 - Orbit re-spacing is immediate; detailed join/leave-to-dock, wink and H2 petal
   choreography are not yet reproduced. Count entry and hover motion are present.
 - Dock ordering follows producer member order (v1 has no ask timestamps).

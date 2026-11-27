@@ -27,3 +27,5 @@ svg { display: inline-block; }
 *, *::before, *::after { box-sizing: border-box; }
 main { min-width: 0; }
 [data-icon=Check]::before { content: '✓'; }
+[data-icon=Book]::before { content: '▤'; font-size: 8px; line-height: 1; }
+[data-icon=Folder]::before { content: '▱'; font-size: 8px; line-height: 1; }
