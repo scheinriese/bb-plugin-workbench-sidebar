@@ -57,3 +57,43 @@ describe("Actual queued starts", () => {
     expect(callRpc).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("24-hour queued reset clock", () => {
+  it.each(["00:00", "04:00", "16:00", "23:59"])(
+    "formats %s without a meridiem marker",
+    (clock) => {
+      const spy = vi
+        .spyOn(Date.prototype, "toLocaleTimeString")
+        .mockImplementation(function (this: Date, locale, options) {
+          return new Intl.DateTimeFormat(locale, {
+            ...options,
+            timeZone: "UTC",
+          }).format(this);
+        });
+      try {
+        expect(
+          queueSecondLine(request({ resetsAt: `2026-11-07T${clock}:00Z` })),
+        ).toBe(`Waits for reset · ${clock}`);
+        expect(spy).toHaveBeenCalledWith("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+  it("uses the producer's canonical 24-hour reset line when available", () => {
+    const line = { text: "Waits for reset · 16:00", tone: "neutral" as const };
+    expect(queueSecondLine(request({ secondLine: line }))).toBe(line.text);
+    const parsed = sidebarRpcMethods.sidebarState.output.parse({
+      version: 1,
+      revision: "queue",
+      threads: [],
+      queuedStarts: [request({ secondLine: line })],
+      truncated: false,
+    });
+    expect(parsed.queuedStarts![0]!.secondLine).toEqual(line);
+  });
+});

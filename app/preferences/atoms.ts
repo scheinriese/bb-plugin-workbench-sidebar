@@ -52,3 +52,9 @@ export const sidebarShowProviderIconsAtom =
 export const sidebarShowRowMetadataAtom =
   createSyncedPreferenceAtom("showRowMetadata");
 export const THREAD_ROW_METADATA_EXPERIMENT = "threadRowMetadata";
+
+export const showProviderOnEveryRowAtom = createSyncedPreferenceAtom(
+  "showProviderOnEveryRow",
+);
+export const calmFacesAtom = createSyncedPreferenceAtom("calmFaces");
+export const teamCollapsedAtom = createSyncedPreferenceAtom("teamCollapsed");

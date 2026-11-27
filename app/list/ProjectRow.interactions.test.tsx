@@ -20,6 +20,8 @@ import {
   type PluginSdkTestFakes,
   type RenderedSlot,
 } from "@get-bb/plugin-sdk/testing/app";
+import { SectionThreadDndProvider } from "../dnd/SectionThreadDndContext.js";
+import { teamSectionId } from "../workbench/team.js";
 import type { SectionThreadDndState } from "../dnd/useSectionThreadDnd.js";
 import type { ProjectThreadListState } from "./ProjectRow.js";
 import { buildPinnedSidebarState } from "../model/pinned-sidebar-threads.js";
@@ -1277,4 +1279,25 @@ describe("environment creation placement", () => {
       ]);
     },
   );
+});
+
+
+describe("native and Team project drag targets", () => {
+  afterEach(cleanup);
+  it.each(["project:proj_test", "project:team:lead-home"])("highlights only the matching project header for %s", dragOverParentKey => {
+    const project = makeSidebarProject({ id: 'proj_test', name: 'Shared project' });
+    const props = { project, threadListState: { status: 'ready' as const, threads: [] }, isActive: false, isCollapsed: false, compareThreads: () => 0, collapsedThreadIds: new Set<string>(), collapsedEnvironmentIds: new Set<string>(), onToggleProjectCollapsed: vi.fn(), onToggleThreadCollapsed: vi.fn(), onToggleEnvironmentCollapsed: vi.fn() };
+    const { container } = renderTree(<SectionThreadDndProvider value={makeSectionDnd({ dragOverParentKey })}>
+      <ProjectRow {...props} />
+      <ProjectRow {...props} teamProject={{ bbProjectId: project.id, orchestratorProjectId: null, leadThreadId: 'lead-home', icon: 'Folder' }} />
+    </SectionThreadDndProvider>);
+    const nativeKey = buildSidebarEntitySectionId('project', project.id);
+    const teamKey = teamSectionId('lead-home');
+    expect(nativeKey).not.toBe(teamKey);
+    for (const key of [nativeKey, teamKey]) {
+      const root = container.querySelector(`[data-sidebar-project-dnd-key="${key}"]`)!;
+      expect(root).not.toBeNull();
+      expect(root.querySelector('[data-sidebar-drop-target="active"]') !== null).toBe(key === dragOverParentKey);
+    }
+  });
 });

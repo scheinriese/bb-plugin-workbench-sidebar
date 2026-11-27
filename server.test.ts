@@ -388,3 +388,12 @@ describe("Workbench opened-thread record",()=>{
  });
  it("keeps opened state below the SDK KV byte limit",async()=>{const{bb,harness}=setup();await plugin(bb);await harness.behavior.callRpc("markThreadsSeen",{threadIds:Array.from({length:2000},(_,i)=>`${i}-`+"x".repeat(1000))});const result=await harness.behavior.callRpc("seenThreads",null);expect(Buffer.byteLength(JSON.stringify(result),"utf8")).toBeLessThan(201_000);});
 });
+
+it('serves only the bounded bundled chief artwork as inert image URIs', async () => {
+  const { bb, harness } = setup(); await plugin(bb);
+  const images = await harness.behavior.callRpc('teamArtwork', null) as Record<string, string>;
+  expect(Object.keys(images)).toHaveLength(32);
+  expect(images['h3/face-nora-idle-dark']).toMatch(/^data:image\/svg\+xml;base64,/);
+  expect(Object.keys(images).every(key => /^h[23]\/face-nora-/.test(key))).toBe(true);
+  expect(Object.values(images).every(value => value.length <= 12000)).toBe(true);
+});

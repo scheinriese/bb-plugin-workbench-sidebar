@@ -1,3 +1,14 @@
+import { useTeamIndex, useTeamState } from "../workbench/BoatState.js";
+import { TeamAvatar } from "../workbench/TeamAvatar.js";
+import {
+  memberPreview,
+  showTeamProvider,
+  teamMemberVisualState,
+} from "../workbench/team.js";
+import {
+  calmFacesAtom,
+  showProviderOnEveryRowAtom,
+} from "../preferences/atoms.js";
 import { useBoatState } from "../workbench/BoatState.js";
 import { useNewThreadSignals } from "../workbench/SeenThreads.js";
 import {
@@ -584,6 +595,30 @@ function ThreadRowComponent({
   );
   const isActionsOpen = isDropdownActionsOpen || isContextActionsOpen;
   const boatStates = useBoatState();
+  const team = useTeamState();
+  const calmFaces = useAtomValue(calmFacesAtom);
+  const everyProvider = useAtomValue(showProviderOnEveryRowAtom);
+  const teamIndex = useTeamIndex();
+  const member = teamIndex.membersByHome.get(thread.id);
+  const assignee =
+    teamIndex.assignees.get(thread.id) ??
+    (thread.workbenchTeamMemberId
+      ? teamIndex.membersById.get(thread.workbenchTeamMemberId)
+      : undefined);
+  const isTeamRow = !!(member || assignee || thread.workbenchTeamLeadThreadId);
+  const nativeProjectName = useSidebarProjectName(
+    thread.workbenchTeamProjectId ?? null,
+  );
+  const projectName = thread.workbenchTeamLeadThreadId
+    ? (teamIndex.projectNames.get(thread.workbenchTeamLeadThreadId) ??
+      nativeProjectName)
+    : nativeProjectName;
+  const memberLine = member ? memberPreview(member, projectName) : null;
+  const providerVisible =
+    team?.enabled && (member || assignee || thread.boat?.role === "review")
+      ? showTeamProvider(thread.boat, member, assignee, everyProvider)
+      : showProviderIcons || !!thread.boat;
+  const avatar = member ?? assignee;
   const isRollupGroup =
     (thread.workbenchChildren?.open ?? 0) >= MANY_TASKS_THRESHOLD;
   const { isNew, newChildren } = useNewThreadSignals(
@@ -591,14 +626,22 @@ function ThreadRowComponent({
     boatStates,
     hasHiddenChildren,
   );
-  const summaryParts = isParentCollapsed ? [
-    isRollupGroup ? (thread.boat?.rollup && rollupText(thread.boat.rollup)) || genericRollupText(thread.workbenchChildren!) : null,
-    thread.workbenchWaiting ? `${thread.workbenchWaiting} waiting` : null,
-  ].filter(Boolean) : [];
+  const summaryParts = isParentCollapsed
+    ? [
+        isRollupGroup
+          ? (thread.boat?.rollup && rollupText(thread.boat.rollup)) ||
+            genericRollupText(thread.workbenchChildren!)
+          : null,
+        thread.workbenchWaiting ? `${thread.workbenchWaiting} waiting` : null,
+      ].filter(Boolean)
+    : [];
   const summaryText = summaryParts.join(" · ") || null;
   const baseSecondLine = summaryText
     ? { text: summaryText, tone: "neutral" as const }
-    : secondLineFor(thread.boat, false);
+    : (memberLine ??
+      (assignee && thread.boat?.secondLine
+        ? thread.boat.secondLine
+        : secondLineFor(thread.boat, false)));
   const secondLine =
     newChildren > 0 && thread.boat?.rollup
       ? {
@@ -627,6 +670,9 @@ function ThreadRowComponent({
   );
   const rowClassName = cn(
     "wb-row",
+    isTeamRow && "wb-team-owned",
+    member && "wb-team-member",
+    member?.kind === "lead" && "wb-team-chief",
     isNew && "wb-row-new",
     secondLine && "wb-two-line",
     isReview && "wb-review",
@@ -774,7 +820,11 @@ function ThreadRowComponent({
             onProjectSelect?.();
           }}
           onDoubleClick={isEditing ? undefined : startTitleEditing}
-          aria-label={linkLabel}
+          aria-label={
+            member?.kind === "lead"
+              ? `Open ${member.name}, chief of staff${hasComposerDraft ? " (unsubmitted draft)" : ""}`
+              : linkLabel
+          }
           aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
           className="absolute inset-0 rounded-md outline-none"
         />
@@ -794,7 +844,26 @@ function ThreadRowComponent({
                 "flex-1",
             )}
           >
-            {showProviderIcons || thread.boat ? (
+            {avatar && (
+              <TeamAvatar
+                member={avatar}
+                visualState={
+                  member
+                    ? teamIndex.visuals.get(member.memberId)
+                    : teamMemberVisualState(avatar, boatStates, thread.id)
+                }
+                calm={calmFaces}
+                chief={member?.kind === "lead"}
+                working={workbenchWorking}
+                task={!member}
+                providerLabel={provider?.displayName ?? providerId}
+                orbitMembers={
+                  member?.kind === "lead" ? teamIndex.orbit : undefined
+                }
+                projectIcon={teamIndex.projectIcons.get(avatar.threadId)}
+              />
+            )}
+            {providerVisible ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
@@ -808,8 +877,9 @@ function ThreadRowComponent({
                   >
                     <ProviderActivity
                       provider={provider}
+                      neutral={isTeamRow}
                       providerId={providerId}
-                      working={workbenchWorking}
+                      working={avatar ? false : workbenchWorking}
                       review={isReview}
                       done={thread.boat?.status === "shipped"}
                     />
@@ -822,6 +892,9 @@ function ThreadRowComponent({
             ) : null}
             <span className="wb-text-column">
               <span className="wb-title-line">
+                {member?.kind === "lead" && hasComposerDraft && (
+                  <span className="wb-chief-draft">Draft</span>
+                )}
                 {isEditing ? (
                   <span className="pointer-events-auto relative z-10 min-w-0 flex-1 overflow-visible">
                     {editor}
@@ -835,12 +908,17 @@ function ThreadRowComponent({
                     title={labelTitle}
                     onDoubleClick={startTitleEditing}
                   >
-                    {isReview ? (
+                    {member ? (
+                      member.name
+                    ) : isReview ? (
                       `${thread.boat?.provider === "claude" ? "Claude" : "Codex"} reviewing…`
                     ) : (
                       <ThreadTitle threadId={thread.id} />
                     )}
                   </span>
+                )}
+                {member?.kind === "lead" && (
+                  <span className="wb-chief-role"> · chief of staff</span>
                 )}
                 {parentOptions &&
                 hasChildren &&
@@ -858,7 +936,11 @@ function ThreadRowComponent({
                 ) : null}
               </span>
               {secondLine && !isEditing && (
-                <span className="wb-second-line" data-tone={secondLine.tone}>
+                <span
+                  className="wb-second-line"
+                  data-tone={secondLine.tone}
+                  title={isTeamRow ? secondLine.text : undefined}
+                >
                   {secondLine.text}
                 </span>
               )}
@@ -983,6 +1065,30 @@ function ThreadRowComponent({
                       label={splitIndicatorLabel}
                       isWorking={splitIndicatorIsWorking}
                     />
+                  </span>
+                ) : member &&
+                  !trailingIndicatorState.hasUnsubmittedDraft &&
+                  !pluginThreadRowStatus ? (
+                  <span className="wb-member-unread">
+                    {member.kind !== "lead" &&
+                      member.unread.messages + member.unread.cards > 0 && (
+                        <span
+                          aria-label={`${member.unread.messages} unread messages, ${member.unread.cards} unanswered cards`}
+                        >
+                          {member.unread.messages + member.unread.cards}
+                        </span>
+                      )}
+                    {member.kind !== "lead" &&
+                      member.preview.kind === "needs-you" &&
+                      member.preview.tone === "attention" &&
+                      !projectName && (
+                        <span
+                          className="wb-dot"
+                          data-tone="attention"
+                          role="img"
+                          aria-label="Needs you"
+                        />
+                      )}
                   </span>
                 ) : (
                   <DotSlot

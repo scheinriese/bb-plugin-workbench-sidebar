@@ -16,6 +16,8 @@ import type { SidebarSectionId } from "../model/sidebar-section-id.js";
 import type { HeaderCreationActions } from "./SidebarHeaderControls.js";
 import { ThreadListVisibilityMenuItems } from "./ThreadListVisibility.js";
 import {
+  showProviderOnEveryRowAtom,
+  calmFacesAtom,
   sidebarThreadLifecyclesAtom,
   sidebarOrganizationModeAtom,
   sidebarChronologicalSortAtom,
@@ -137,6 +139,8 @@ export function SidebarHeaderMenuContents({
 }
 
 function SidebarViewItems({ page }: { page: SidebarViewPage }) {
+  const [everyProvider, setEveryProvider] = useAtom(showProviderOnEveryRowAtom);
+  const [calmFaces, setCalmFaces] = useAtom(calmFacesAtom);
   const [lifecycles, setLifecycles] = useAtom(sidebarThreadLifecyclesAtom);
   const [organization, setOrganization] = useAtom(sidebarOrganizationModeAtom);
   const [sort, setSort] = useAtom(sidebarChronologicalSortAtom);
@@ -257,6 +261,33 @@ function SidebarViewItems({ page }: { page: SidebarViewPage }) {
             Provider icons
             <span className="ml-auto inline-flex size-4 shrink-0 items-center justify-center">
               {showProviderIcons && <Icon name="Check" className="size-4" />}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            role="menuitemcheckbox"
+            aria-checked={everyProvider}
+            onSelect={(event) => {
+              event.preventDefault();
+              setEveryProvider(!everyProvider);
+            }}
+          >
+            Show provider on every row{" "}
+            <span className="ml-auto">
+              {everyProvider && <Icon name="Check" className="size-4" />}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+          <DropdownMenuItem
+            role="menuitemcheckbox"
+            aria-checked={calmFaces}
+            onSelect={(event) => {
+              event.preventDefault();
+              setCalmFaces(!calmFaces);
+            }}
+          >
+            Calm faces{" "}
+            <span className="ml-auto">
+              {calmFaces && <Icon name="Check" className="size-4" />}
             </span>
           </DropdownMenuItem>
           {rowMetadataEnabled ? (

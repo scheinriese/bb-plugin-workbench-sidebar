@@ -10,7 +10,7 @@
   },
   "bb": {
     "name": "Workbench sidebar",
-    "description": "A full fork of bb\u2019s thread list with provider activity rings and Boat work trees.",
+    "description": "A full fork of bb’s thread list with provider activity rings and Boat work trees.",
     "branding": {
       "icon": "ListView"
     },
@@ -27,7 +27,9 @@
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --ignore-pattern node_modules --ignore-pattern dist .",
-    "build": "bb plugin build"
+    "build": "bb plugin build",
+    "check:bundle": "node scripts/check-sidebar-bundle.mjs",
+    "test:built": "WORKBENCH_TEST_BUILT=1 vitest run --config vitest.config.ts app/workbench/compiledSidebar.test.tsx"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

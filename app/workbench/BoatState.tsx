@@ -3,30 +3,51 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
   type ReactNode,
 } from "react";
+import { TeamArtworkProvider } from "./TeamArtwork.js";
+import { buildTeamIndex } from "./team.js";
 import { useSdk } from "@get-bb/plugin-sdk/app";
 import {
   sidebarRpcMethods,
   type SidebarThreadDto,
   type SidebarQueuedStartDto,
+  type TeamSidebarDto,
 } from "../../shared/boat-sidebar.js";
 
 export const BoatStateContext = createContext<
   ReadonlyMap<string, SidebarThreadDto>
 >(new Map());
-export const QueuedStartsContext = createContext<readonly SidebarQueuedStartDto[]>([]);
-export function useQueuedStarts() { return useContext(QueuedStartsContext); }
+export const TeamStateContext = createContext<TeamSidebarDto | undefined>(
+  undefined,
+);
+const emptyTeamIndex = buildTeamIndex(undefined, new Map());
+export const TeamIndexContext = createContext(emptyTeamIndex);
+export function useTeamIndex() {
+  return useContext(TeamIndexContext);
+}
+export function useTeamState() {
+  return useContext(TeamStateContext);
+}
+export const QueuedStartsContext = createContext<
+  readonly SidebarQueuedStartDto[]
+>([]);
+export function useQueuedStarts() {
+  return useContext(QueuedStartsContext);
+}
 /** One bounded read for the list, never a request per row. Boat is optional. */
 export function BoatStateProvider({ children }: { children: ReactNode }) {
   const sdk = useSdk();
   const [state, setState] = useState<ReadonlyMap<string, SidebarThreadDto>>(
     new Map(),
   );
+  const [team, setTeam] = useState<TeamSidebarDto>();
   const [queued, setQueued] = useState<readonly SidebarQueuedStartDto[]>([]);
   useEffect(() => {
     let disposed = false;
     let revision: string | null = null;
+    let teamRevision: string | undefined;
     let timer: ReturnType<typeof setTimeout>;
     let controller: AbortController | null = null;
     let inFlight = false;
@@ -41,22 +62,31 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
           method: "sidebarState",
           input: {
             version: 1,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             timezoneOffsetMinutes: new Date().getTimezoneOffset(),
           },
           outputSchema: sidebarRpcMethods.sidebarState.output,
           signal: controller.signal,
         });
-        if (!disposed && result.revision !== revision) {
+        if (
+          !disposed &&
+          (result.revision !== revision ||
+            result.team?.revision !== teamRevision)
+        ) {
           revision = result.revision;
+          teamRevision = result.team?.revision;
           setState(new Map(result.threads.map((row) => [row.threadId, row])));
           setQueued(result.queuedStarts ?? []);
+          setTeam(result.team?.enabled ? result.team : undefined);
         }
       } catch {
         // Missing/disabled/older Boat and invalid responses quietly restore generic BB.
         if (!disposed) {
           revision = null;
+          teamRevision = undefined;
+          setTeam(undefined);
           setState((previous) => (previous.size ? new Map() : previous));
-          setQueued(previous => previous.length ? [] : previous);
+          setQueued((previous) => (previous.length ? [] : previous));
         }
       } finally {
         inFlight = false;
@@ -76,10 +106,19 @@ export function BoatStateProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", visibility);
     };
   }, [sdk]);
+  const index = useMemo(() => buildTeamIndex(team, state), [team, state]);
   return (
-    <BoatStateContext.Provider value={state}>
-      <QueuedStartsContext.Provider value={queued}>{children}</QueuedStartsContext.Provider>
-    </BoatStateContext.Provider>
+    <TeamArtworkProvider enabled={!!team}>
+      <TeamIndexContext.Provider value={index}>
+        <BoatStateContext.Provider value={state}>
+          <TeamStateContext.Provider value={team}>
+            <QueuedStartsContext.Provider value={queued}>
+              {children}
+            </QueuedStartsContext.Provider>
+          </TeamStateContext.Provider>
+        </BoatStateContext.Provider>
+      </TeamIndexContext.Provider>
+    </TeamArtworkProvider>
   );
 }
 export function useBoatState() {

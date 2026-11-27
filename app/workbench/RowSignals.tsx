@@ -15,12 +15,14 @@ export function ProviderActivity({
   working,
   review,
   done,
+  neutral = false,
 }: {
   provider?: PluginProvidersState["providers"][number];
   providerId: string;
   working: boolean;
   review: boolean;
   done: boolean;
+  neutral?: boolean;
 }) {
   const claude = providerId.includes("claude");
   return (
@@ -51,7 +53,7 @@ export function ProviderActivity({
             className="wb-arc"
             d={review ? "M1 9a8 8 0 0 1 8-8" : "M9 1a8 8 0 0 1 8 8"}
             fill="none"
-            stroke={claude ? "#D97757" : "#BDBDBD"}
+            stroke={claude && !neutral ? "#D97757" : "#BDBDBD"}
             strokeWidth="1.5"
             strokeLinecap="round"
           />
