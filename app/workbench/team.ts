@@ -29,7 +29,17 @@ export function memberPreview(member: TeamMemberDto, projectName?: string) {
   if (unread) return { text: `${unread} unread`, tone: "neutral" as const };
   return (
     member.preview ?? {
-      text: member.status === "idle" ? "idle" : member.status,
+      text:
+        (
+          {
+            idle: "idle",
+            paused: "paused · stopped early",
+            stalled: "stalled · nudged",
+            error: "failed",
+            "needs-you": "needs you",
+            attention: "needs attention",
+          } as Record<string, string>
+        )[member.status] ?? member.status,
       tone: "neutral" as const,
     }
   );
@@ -68,11 +78,41 @@ export function partitionTeamThreads(
     ...team.projects.map((p) => p.leadThreadId),
   ]);
   const byId = new Map(threads.map((t) => [t.id, t]));
+  const projectsByLead = new Map(
+    team.projects.map((p) => [p.leadThreadId, p.bbProjectId]),
+  );
+  const projectIds = new Set(team.projects.map((p) => p.bbProjectId));
+  const projectFor = (thread: SidebarThread) => {
+    if (projectIds.has(thread.projectId)) return thread.projectId;
+    const seen = new Set<string>();
+    let parent = thread.parentThreadId;
+    while (parent && !seen.has(parent)) {
+      const project = projectsByLead.get(parent);
+      if (project) return project;
+      seen.add(parent);
+      parent = byId.get(parent)?.parentThreadId ?? null;
+    }
+    const owner = team.members.find((m) =>
+      m.backgroundThreadIds.includes(thread.id),
+    );
+    return owner?.projectId && projectIds.has(owner.projectId)
+      ? owner.projectId
+      : undefined;
+  };
+  const projectByThread = new Map(threads.map((t) => [t.id, projectFor(t)]));
+  const memberProjectByHome = new Map(
+    team.members.map((m) => [
+      m.threadId,
+      m.projectId ??
+        m.backgroundThreadIds
+          .map((id) => projectByThread.get(id))
+          .find(Boolean),
+    ]),
+  );
   const belongsToMember = (thread: SidebarThread) => {
     if (homes.has(thread.id)) return true;
     // A project assignment belongs to work, not to the member's home tree.
-    if (team.projects.some((p) => p.bbProjectId === thread.projectId))
-      return false;
+    if (projectByThread.get(thread.id)) return false;
     const seen = new Set<string>();
     let parent = thread.parentThreadId;
     while (parent && !seen.has(parent)) {
@@ -82,16 +122,25 @@ export function partitionTeamThreads(
     }
     return false;
   };
-  const members = threads
-    .filter(belongsToMember)
-    .map((t) => (homes.has(t.id) ? { ...t, parentThreadId: null } : t));
+  const members = threads.filter(belongsToMember).map((t) =>
+    homes.has(t.id)
+      ? {
+          ...t,
+          parentThreadId: null,
+          workbenchTeamProjectId: memberProjectByHome.get(t.id) ?? undefined,
+        }
+      : t,
+  );
   const memberIds = new Set(members.map((t) => t.id));
   const sections = threads
     .filter((t) => !hidden.has(t.id) && !memberIds.has(t.id))
-    .map((t) =>
-      t.parentThreadId && hidden.has(t.parentThreadId)
-        ? { ...t, parentThreadId: null }
-        : t,
-    );
+    .map((t) => ({
+      ...t,
+      workbenchTeamProjectId: projectByThread.get(t.id),
+      parentThreadId:
+        t.parentThreadId && hidden.has(t.parentThreadId)
+          ? null
+          : t.parentThreadId,
+    }));
   return { sections, members };
 }

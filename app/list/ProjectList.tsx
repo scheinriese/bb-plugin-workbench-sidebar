@@ -1346,7 +1346,9 @@ function ProjectListComponent({
   const threads = useMemo(
     () =>
       teamPartition.sections.filter(
-        (t) => !teamProjectIds.has(t.projectId) || teamPinnedIds.has(t.id),
+        (t) =>
+          !teamProjectIds.has(t.workbenchTeamProjectId ?? t.projectId) ||
+          teamPinnedIds.has(t.id),
       ),
     [teamPartition, teamProjectIds, teamPinnedIds],
   );
@@ -1357,7 +1359,9 @@ function ProjectListComponent({
         .map((p) => ({
           ...p,
           threads: teamPartition.sections.filter(
-            (t) => t.projectId === p.id && !teamPinnedIds.has(t.id),
+            (t) =>
+              (t.workbenchTeamProjectId ?? t.projectId) === p.id &&
+              !teamPinnedIds.has(t.id),
           ),
         })),
     [projects, teamPartition, teamProjectIds, teamPinnedIds],

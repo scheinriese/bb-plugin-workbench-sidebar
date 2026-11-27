@@ -716,3 +716,6 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-text-column { margin-top: 0; }
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-row-label { align-items: center; }
 .wb-list .wb-team-chief .wb-text-column { padding-right: var(--wb-chief-trailing-width, 56px); }
+.wb-chief-draft { color: #a8a8a8; font-size: 11px; }
+.wb-team-chief:has(.wb-chief-draft) .wb-chief-role { display: none; }
+:root:not(.dark) .wb-chief-draft { color: #525252; }

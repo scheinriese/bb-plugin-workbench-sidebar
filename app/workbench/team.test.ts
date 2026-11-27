@@ -95,3 +95,24 @@ it("keeps plain marks; omits Team defaults; always marks reviews and handoffs", 
   ).toBe(true);
   expect(showTeamProvider(task, member, undefined, true)).toBe(true);
 });
+it("resolves project ownership through hidden leads without changing host project facts", () => {
+  const { team, threads } = teamFixture();
+  const worker = {
+    ...threads[0]!,
+    id: "cross",
+    projectId: "personal",
+    parentThreadId: "thr_web-lead",
+  };
+  team.members[0]!.backgroundThreadIds = ["cross"];
+  team.members[0]!.projectId = undefined;
+  const result = partitionTeamThreads([...threads, worker], team);
+  expect(
+    result.sections.find((t) => t.id === "cross")?.workbenchTeamProjectId,
+  ).toBe("web");
+  expect(result.sections.find((t) => t.id === "cross")?.projectId).toBe(
+    "personal",
+  );
+  expect(
+    result.members.find((t) => t.id === "thr_iris")?.workbenchTeamProjectId,
+  ).toBe("web");
+});

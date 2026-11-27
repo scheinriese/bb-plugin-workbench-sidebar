@@ -604,7 +604,9 @@ function ThreadRowComponent({
       m.memberId === thread.boat?.assigneeMemberId ||
       m.backgroundThreadIds.includes(thread.id),
   );
-  const projectName = useSidebarProjectName(member?.projectId ?? null);
+  const projectName = useSidebarProjectName(
+    member?.projectId ?? thread.workbenchTeamProjectId ?? null,
+  );
   const memberLine = member ? memberPreview(member, projectName) : null;
   const providerVisible =
     team?.enabled && (member || assignee || thread.boat?.role === "review")
@@ -841,7 +843,11 @@ function ThreadRowComponent({
                           thread.boat?.status === "broken"
                             ? "failed"
                             : thread.boat?.status === "stopped"
-                              ? "paused"
+                              ? /^waiting\b/i.test(
+                                  thread.boat.secondLine?.text ?? "",
+                                )
+                                ? "waiting"
+                                : "paused"
                               : workbenchWorking
                                 ? "working"
                                 : "idle",
@@ -887,6 +893,9 @@ function ThreadRowComponent({
             ) : null}
             <span className="wb-text-column">
               <span className="wb-title-line">
+                {member?.kind === "chief" && hasComposerDraft && (
+                  <span className="wb-chief-draft">Draft</span>
+                )}
                 {member?.kind === "chief" && (
                   <span className="wb-chief-role"> · chief of staff</span>
                 )}

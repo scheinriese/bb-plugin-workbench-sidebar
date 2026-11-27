@@ -25,6 +25,7 @@ async function mount({
   calm = false,
   enabled = true,
   every = false,
+  drafts = [] as string[],
   modify = (_f: ReturnType<typeof teamFixture>) => {},
 } = {}) {
   setPreferencesMirrorStorageForTest(null);
@@ -39,6 +40,7 @@ async function mount({
     searchQuery: "",
   };
   const rendered = renderSlot(app.threadLists[0]!, props, {
+    sidebarDraftThreadIds: drafts,
     sidebarThreads: {
       status: "ready",
       threads: f.threads,
@@ -262,4 +264,16 @@ it("renders the handoff chip with its time and reason, keeping the assignee face
     chip.closest(".wb-row")!.querySelector(".wb-team-avatar"),
   ).not.toBeNull();
   expect(chip.closest(".wb-row")!.querySelector(".wb-provider")).not.toBeNull();
+});
+
+it("keeps native draft signals on member rows and the chief tile", async () => {
+  await mount({ drafts: ["thr_nora", "thr_scout"] });
+  await screen.findByText(/chief of staff/);
+  expect(document.querySelector(".wb-chief-draft")?.textContent).toBe("Draft");
+  const scout = document
+    .querySelector('[data-sidebar-thread-id="thr_scout"]')!
+    .closest(".wb-row");
+  expect(
+    scout?.querySelector('[aria-label="Unsubmitted draft"]'),
+  ).not.toBeNull();
 });
