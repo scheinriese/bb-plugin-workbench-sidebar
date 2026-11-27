@@ -11,7 +11,7 @@ import {
 import { ProjectRow, ProjectThreadTree } from "../list/ProjectRow.js";
 import type { SidebarProject } from "../model/use-sidebar-data.js";
 import type { SidebarThread } from "../model/sidebar-thread.js";
-import { useEffect, type ComponentProps, type CSSProperties } from "react";
+import { useEffect, type ComponentProps } from "react";
 import { TeamAvatar } from "./TeamAvatar.js";
 import {
   ThreadListVisibility,
@@ -33,6 +33,7 @@ export function TeamBlock({
   projects: readonly {
     project: SidebarProject;
     teamProject: TeamSidebarDto["projects"][number];
+    leadThreadIds: readonly string[];
   }[];
   threads: readonly SidebarThread[];
   treeProps: Omit<ComponentProps<typeof ProjectThreadTree>, "threadListState">;
@@ -72,7 +73,7 @@ export function TeamBlock({
     (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
   const docked = index.dock;
   const renderProject = (
-    { project, teamProject }: (typeof projects)[number],
+    { project, teamProject, leadThreadIds }: (typeof projects)[number],
     close?: () => void,
   ) => (
     <ProjectRow
@@ -86,12 +87,12 @@ export function TeamBlock({
         onNavigate?.();
       }}
       isActive={false}
-      isCollapsed={collapsedLeads.includes(teamProject.leadThreadId)}
+      isCollapsed={leadThreadIds.some((id) => collapsedLeads.includes(id))}
       onToggleProjectCollapsed={() =>
         setCollapsedLeads((current) =>
-          current.includes(teamProject.leadThreadId)
-            ? current.filter((id) => id !== teamProject.leadThreadId)
-            : [...current, teamProject.leadThreadId],
+          leadThreadIds.some((id) => current.includes(id))
+            ? current.filter((id) => !leadThreadIds.includes(id))
+            : [...current, ...leadThreadIds],
         )
       }
     />
@@ -130,11 +131,7 @@ export function TeamBlock({
         {(chief.length > 0 || team.yourMove.count > 0) && (
           <div
             className="wb-chief-tile"
-            style={
-              {
-                "--wb-chief-trailing-width": `${team.yourMove.count ? (calm ? 28 : (docked.length ? 18 + 10 * (docked.length - 1) : 0) + 28) : 0}px`,
-              } as CSSProperties
-            }
+            data-has-count={team.yourMove.count > 0 || undefined}
           >
             {chief.length ? (
               <ProjectThreadTree
@@ -149,21 +146,6 @@ export function TeamBlock({
             )}
             {team.yourMove.count > 0 && (
               <div className="wb-chief-trailing">
-                {!calm && (
-                  <span
-                    className="wb-team-dock"
-                    aria-hidden="true"
-                    style={{
-                      width: docked.length ? 18 + 10 * (docked.length - 1) : 0,
-                    }}
-                  >
-                    {docked.map((m, i) => (
-                      <span key={m.memberId} style={{ left: i * 10 }}>
-                        <TeamAvatar member={m} badge={false} />
-                      </span>
-                    ))}
-                  </span>
-                )}
                 <a
                   className="wb-your-move"
                   href="/plugins/boat/cloud-agents"
@@ -177,8 +159,35 @@ export function TeamBlock({
                   aria-label={`${team.yourMove.count} need you. Open Team Today`}
                   title={`${team.yourMove.overdue} overdue · ${team.yourMove.confirm} need confirmation`}
                 >
-                  <span key={team.yourMove.count}>{team.yourMove.count}</span>
+                  <span key={team.yourMove.count}>
+                    {team.yourMove.count > 99 ? "99+" : team.yourMove.count}
+                  </span>
                 </a>
+              </div>
+            )}
+            {!calm && team.yourMove.count > 0 && docked.length > 0 && (
+              <div
+                className="wb-chief-dock-row"
+                aria-label="Members waiting for you"
+              >
+                <span
+                  className="wb-team-dock"
+                  aria-hidden="true"
+                  style={{
+                    width: docked.length ? 18 + 10 * (docked.length - 1) : 0,
+                  }}
+                >
+                  {docked.map((m, i) => (
+                    <span key={m.memberId} style={{ left: i * 10 }}>
+                      <TeamAvatar member={m} badge={false} />
+                    </span>
+                  ))}
+                </span>
+                {index.dockOverflow > 0 && (
+                  <span className="wb-dock-overflow">
+                    +{index.dockOverflow}
+                  </span>
+                )}
               </div>
             )}
           </div>

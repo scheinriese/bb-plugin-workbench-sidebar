@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import { teamFixture } from "./team-fixtures.js";
 import {
   memberPreview,
+  resolveTeamProjects,
+  groupTeamProjects,
   buildTeamIndex,
   partitionTeamThreads,
   showTeamProvider,
@@ -228,4 +230,63 @@ it("precomputes the roster, assignees, inherited review owners and orbit once", 
   expect(index.membersByHome.get("thr_nora")?.kind).toBe("lead");
   expect(index.orbit.map((m) => m.memberId)).toEqual(["docs-lead"]);
   expect(index.projectIcons.get("thr_docs-lead")).toBe("Folder");
+});
+
+it("uses the lead native home project even if the claimed id is Personal", () => {
+  const f = teamFixture();
+  f.team.projects[0]!.bbProjectId = "personal";
+  const projects = f.projects.map((p) => ({
+    ...p,
+    threads: f.threads.filter((t) => t.projectId === p.id),
+  }));
+  expect(
+    resolveTeamProjects(f.team, projects).find(
+      (p) => p.teamProject.leadThreadId === "thr_web-lead",
+    )?.project.id,
+  ).toBe("web");
+});
+it("does not invent an empty Personal header from an unknown id or an unloaded home", () => {
+  const f = teamFixture();
+  f.team.projects[0]!.bbProjectId = "hm-portfolio";
+  const home = f.threads.find((t) => t.id === "thr_web-lead")!;
+  home.projectId = "personal";
+  f.threads = f.threads.filter((t) => t.parentThreadId !== home.id);
+  const projects = f.projects.map((p) => ({
+    ...p,
+    threads: f.threads.filter((t) => t.projectId === p.id),
+  }));
+  expect(
+    resolveTeamProjects(f.team, projects).some(
+      (p) => p.teamProject.leadThreadId === home.id,
+    ),
+  ).toBe(false);
+});
+
+it("groups aliases into one project while retaining both work trees and all lead ids", () => {
+  const f = teamFixture();
+  const alias = { ...f.team.projects[0]!, leadThreadId: "alias-home" };
+  f.team.projects.push({ ...f.team.projects[0]! }, alias);
+  f.threads.push(
+    makeSidebarThread({ id: "alias-home", projectId: "web" }),
+    makeSidebarThread({
+      id: "alias-work",
+      projectId: "web",
+      parentThreadId: "alias-home",
+    }),
+  );
+  const projects = f.projects.map((p) => ({
+    ...p,
+    threads: f.threads.filter((t) => t.projectId === p.id),
+  }));
+  const resolved = resolveTeamProjects(f.team, projects);
+  const placement = partitionTeamThreads(f.threads, {
+    ...f.team,
+    projects: resolved.map((p) => p.teamProject),
+  });
+  const groups = groupTeamProjects(resolved, placement.sections, new Set());
+  expect(groups).toHaveLength(2);
+  const web = groups.find((g) => g.project.id === "web")!;
+  expect(web.leadThreadIds).toEqual(["thr_web-lead", "alias-home"]);
+  expect(web.project.threads.some((t) => t.id === "alias-work")).toBe(true);
+  expect(web.project.threads.some((t) => t.id === "thr_checkout")).toBe(true);
 });

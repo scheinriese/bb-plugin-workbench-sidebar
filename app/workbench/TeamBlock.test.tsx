@@ -477,7 +477,7 @@ it.each([false, true])(
     expect(secondLine.getAttribute("title")).toBeNull();
   },
 );
-it("shows both leads sharing one BB project, with separate tasks and disclosures", async () => {
+it("merges duplicate leads into one BB-project header without losing their work", async () => {
   await mount({
     modify: (f) => {
       const lead = {
@@ -513,12 +513,12 @@ it("shows both leads sharing one BB project, with separate tasks and disclosures
       });
     },
   });
-  await screen.findByText("Second lead");
+  await screen.findByText("Other work");
   const sections = document.querySelectorAll("[data-team-project-lead]");
-  expect(sections).toHaveLength(3);
+  expect(sections).toHaveLength(2);
   expect(
     document.querySelector(
-      '[data-team-project-lead="other-lead"] [data-sidebar-thread-id="other-task"]',
+      '[data-team-project-lead="thr_web-lead"] [data-sidebar-thread-id="other-task"]',
     ),
   ).not.toBeNull();
   expect(
@@ -581,4 +581,106 @@ it("never fetches artwork with Team off, and caches one read when Team is on", a
   on.f.team.revision = "changed";
   fireEvent(document, new Event("visibilitychange"));
   await waitFor(() => expect(on.artwork).toHaveBeenCalledTimes(1));
+});
+
+it("resolves an unknown engine project id from the lead home, never a made-up Personal group", async () => {
+  await mount({
+    modify: (f) => {
+      f.projects[1]!.name = "Portfolio";
+      f.team.members[5]!.name = "Portfolio lead";
+      f.team.projects[0]!.bbProjectId = "hm-internal-portfolio";
+    },
+  });
+  await screen.findByLabelText("Open Portfolio lead chat");
+  expect(
+    document.querySelector('[data-team-project-lead="thr_web-lead"]')
+      ?.textContent,
+  ).not.toContain("Personal");
+  expect(
+    document.querySelector(
+      '[data-team-project-lead="thr_web-lead"] [data-sidebar-thread-id="thr_checkout"]',
+    ),
+  ).not.toBeNull();
+});
+it("deduplicates repeated lead thread records as well as multiple leads in one BB project", async () => {
+  await mount({
+    modify: (f) => {
+      f.team.projects.push(
+        { ...f.team.projects[0]! },
+        { ...f.team.projects[0]!, bbProjectId: "hm-wrong-id" },
+      );
+    },
+  });
+  await screen.findByLabelText("Open Web app lead chat");
+  expect(
+    document.querySelectorAll('[data-team-project-lead="thr_web-lead"]'),
+  ).toHaveLength(1);
+  expect(
+    document.querySelectorAll('[data-sidebar-thread-id="thr_checkout"]'),
+  ).toHaveLength(1);
+});
+it("skips an unresolvable project header and leaves its home and work native", async () => {
+  await mount({
+    modify: (f) => {
+      f.team.projects[0]!.bbProjectId = "unknown";
+      f.threads.splice(
+        f.threads.findIndex((t) => t.id === "thr_web-lead"),
+        1,
+      );
+      // A thread that is not in the loaded list cannot verify a fallback project.
+    },
+  });
+  await screen.findByText(/chief of staff/);
+  const work = document.querySelector(
+    '[data-sidebar-thread-id="thr_checkout"]',
+  );
+  expect(work).not.toBeNull();
+  expect(work!.closest(".wb-team-block")).toBeNull();
+  expect(
+    document
+      .querySelector('[data-sidebar-thread-id="thr_pricing"]')!
+      .closest(".wb-team-block"),
+  ).toBeNull();
+  expect(
+    document.querySelector('[data-team-project-lead="thr_web-lead"]'),
+  ).toBeNull();
+});
+it.each([57, 99, 100, 250])(
+  "renders count %s compactly while exposing the exact value accessibly",
+  async (count) => {
+    await mount({
+      modify: (f) => {
+        f.team.yourMove.count = count;
+      },
+    });
+    const pill = await screen.findByLabelText(
+      `${count} need you. Open Team Today`,
+    );
+    expect(pill.textContent).toBe(count > 99 ? "99+" : String(count));
+  },
+);
+it("keeps a long chief name intact with three dock faces and an overflow indicator below it", async () => {
+  await mount({
+    modify: (f) => {
+      f.team.lead!.name = "Nora the long-named chief of staff";
+      f.team.yourMove.count = 57;
+      for (const m of f.team.members)
+        m.preview = {
+          kind: "needs-you",
+          text: "Review this work",
+          tone: "neutral",
+        };
+    },
+  });
+  const home = await screen.findByLabelText(
+    "Open Nora the long-named chief of staff, chief of staff",
+  );
+  expect(home.closest(".wb-row")!.querySelector(".wb-title")!.textContent).toBe(
+    "Nora the long-named chief of staff",
+  );
+  const tile = home.closest(".wb-chief-tile")!;
+  expect(tile.querySelectorAll(".wb-team-dock > span")).toHaveLength(3);
+  expect(tile.querySelector(".wb-dock-overflow")?.textContent).toBe("+4");
+  expect(tile.querySelector(".wb-chief-trailing .wb-team-dock")).toBeNull();
+  expect(tile.querySelector(".wb-your-move")?.textContent).toBe("57");
 });

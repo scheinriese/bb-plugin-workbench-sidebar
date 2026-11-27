@@ -211,3 +211,51 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
   );
   return { team, threads, projects, states };
 }
+
+/** Fictional reproduction of the first-live-render shape, not owner data. */
+export function teamLiveShapeFixture() {
+  const f = teamFixture();
+  f.team.lead!.name = "Nora the long-named chief of staff";
+  f.team.yourMove = { count: 57, overdue: 2, confirm: 14 };
+  f.projects[1]!.name = "Portfolio";
+  f.team.members[5]!.name = "Portfolio lead";
+  f.team.projects[0]!.bbProjectId = "hm-internal-portfolio";
+  f.team.projects.push({ ...f.team.projects[0]! });
+  const alias = {
+    ...f.team.members[5]!,
+    memberId: "portfolio-alias",
+    threadId: "thr_portfolio_alias",
+    backgroundThreadIds: ["thr_alias_work"],
+  };
+  f.team.members.push(alias);
+  f.team.projects.push({
+    bbProjectId: "another-internal-id",
+    leadThreadId: alias.threadId,
+    icon: "Folder",
+  });
+  f.threads.push(
+    makeSidebarThread({
+      id: alias.threadId,
+      title: alias.name,
+      projectId: "web",
+    }),
+    makeSidebarThread({
+      id: "thr_alias_work",
+      title: "Portfolio follow-up",
+      projectId: "web",
+      parentThreadId: alias.threadId,
+    }),
+  );
+  f.states.push({
+    ...f.states[0]!,
+    threadId: "thr_alias_work",
+    parentThreadId: alias.threadId,
+  });
+  for (const id of ["developer", "olive"])
+    f.team.members.find((m) => m.memberId === id)!.preview = {
+      kind: "needs-you",
+      text: "Review this work",
+      tone: "neutral",
+    };
+  return f;
+}

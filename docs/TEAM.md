@@ -132,13 +132,19 @@ selects only its own bundled H3/H2 role silhouettes.
 
 There are no per-member project/provider fields, nor thread assignment/default-
 provider/handoff fields, in the engine's v1 DTO. The provisional fields have
-been removed from the parser and all consumers. `leadThreadId`, member homes, and `backgroundThreadIds` plus their descendants
+been removed from the parser and all consumers. `leadThreadId`, member homes,
+and `backgroundThreadIds` plus their descendants
 identify ownership. **A matching BB project id alone never makes a chat Team
 work.** Only explicitly owned work roots may use their host project to select
 a unique lead; ambiguous shared-project work stays with its member unless
-ancestry identifies a lead. Each lead has its own section/disclosure, even
-when two leads share a BB project. Plain chats retain native grouping and
-custom sections. Host project facts are never rewritten. Existing thread provider facts still drive
+ancestry identifies a lead. Loaded native lead-home projects are authoritative.
+Unknown engine ids never
+fall back to an invented Personal project; unresolvable homes/work remain
+native. Repeated lead-thread records are deduplicated, and leads sharing one
+actual BB project merge into one Team header with all their work retained.
+The first resolved lead is the stable header chat target. Plain chats retain
+native grouping and custom sections. Host project facts are never rewritten.
+Existing thread provider facts still drive
 review and non-default provider marks (Claude is the sidebar's default).
 V1 cannot supply a truthful handoff-history chip, so none is invented.
 
@@ -181,8 +187,9 @@ chief home is missing or filtered out, and the chief's accessible name is
 `npm run build` invokes **only bb's own `buildPluginApp` pipeline**, matching
 what `bb plugin install <path>` rebuilds. The former Terser post-step and its
 private-property mangling have been removed: that output was not what the
-installer shipped. The installer-equivalent eager JS is about **529 KB**, not
-the previously reported post-processed 509 KB. It includes Team UI code but
+installer shipped. The installer-equivalent eager JS was about **529 KB** at `158b7a9`, not
+the previously reported post-processed 509 KB. Run the size check for the current
+revision (the first-live-render fixes add a small amount of UI code). It includes Team UI code but
 not the lazily requested SVG table. No claim of a main-sized eager bundle is
 made; the same-toolchain main baseline is 511,138 bytes.
 
@@ -238,3 +245,12 @@ latest-line decision). Live installation screenshots remain operator-owned.
   More than six working faces uses the first six in that order.
 - Background assignment placement relies on host project IDs plus the engine's
   ownership metadata. The parser intentionally does not infer projects by name.
+
+## First live-render safeguards
+
+The chief name wraps without ellipsis; only her preview is truncated. The pill
+reserves its own space and displays the exact count through 99, then `99+`;
+its accessible label always keeps the exact value. Dock faces are below the
+text, capped at three with `+N` for additional askers, and hidden in tile
+containers narrower than 261 px. Long names can increase the tile height.
+These rules do not change plain chat rows or Team-off layout.

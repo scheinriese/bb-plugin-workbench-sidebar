@@ -1,3 +1,4 @@
+import type { SidebarProject } from "../model/use-sidebar-data.js";
 import type {
   TeamMemberDto,
   TeamSidebarDto,
@@ -94,7 +95,10 @@ export function buildTeamIndex(
     dock: TeamMemberDto[] = [];
   if (team) {
     for (const p of team.projects) projectIcons.set(p.leadThreadId, p.icon);
+    const seenHomes = new Set<string>();
     for (const m of [...(team.lead ? [team.lead] : []), ...team.members]) {
+      if (seenHomes.has(m.threadId)) continue;
+      seenHomes.add(m.threadId);
       membersByHome.set(m.threadId, m);
       membersById.set(m.memberId, m);
       for (const id of m.backgroundThreadIds)
@@ -135,10 +139,87 @@ export function buildTeamIndex(
     projectIcons,
     orbit,
     dock: dock.slice(-3),
+    dockOverflow: Math.max(0, dock.length - 3),
   };
 }
 export function teamSectionId(leadId: string): `project:${string}` {
   return `project:team:${leadId}`;
+}
+
+/** The native home thread is authoritative, not Harbormaster's internal id.
+ * Never manufacture a Personal project when the actual home cannot verify it. */
+export function resolveTeamProjects(
+  team: TeamSidebarDto | undefined,
+  projects: readonly SidebarProject[],
+) {
+  if (!team?.enabled) return [];
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  const threads = projects.flatMap((p) => p.threads);
+  const byThread = new Map(threads.map((t) => [t.id, t]));
+  const seen = new Set<string>();
+  return (team?.projects ?? []).flatMap((input) => {
+    if (seen.has(input.leadThreadId)) return [];
+    const home = byThread.get(input.leadThreadId);
+    const native = home ? byId.get(home.projectId) : undefined;
+    const claimed = byId.get(input.bbProjectId);
+    const project = native ?? claimed;
+    if (!project || (project.isPersonal && !native?.isPersonal)) return [];
+    // An unknown engine id plus an idle Personal home is not a useful project
+    // section. Keep that home native until real work/project data is available.
+    if (!claimed && project.isPersonal) {
+      const backgrounds = new Set(
+        team?.members.find((m) => m.threadId === input.leadThreadId)
+          ?.backgroundThreadIds ?? [],
+      );
+      if (
+        !threads.some(
+          (t) =>
+            t.id !== input.leadThreadId &&
+            (t.parentThreadId === input.leadThreadId || backgrounds.has(t.id)),
+        )
+      )
+        return [];
+    }
+    seen.add(input.leadThreadId);
+    return [{ project, teamProject: { ...input, bbProjectId: project.id } }];
+  });
+}
+export function groupTeamProjects(
+  resolved: ReturnType<typeof resolveTeamProjects>,
+  threads: readonly SidebarThread[],
+  pinned: ReadonlySet<string>,
+) {
+  if (!resolved.length) return [];
+  const groups = new Map<
+    string,
+    {
+      project: SidebarProject;
+      teamProject: TeamSidebarDto["projects"][number];
+      leadThreadIds: string[];
+    }
+  >();
+  for (const { project, teamProject } of resolved) {
+    const group = groups.get(project.id);
+    if (group) group.leadThreadIds.push(teamProject.leadThreadId);
+    else
+      groups.set(project.id, {
+        project: { ...project, threads: [] },
+        teamProject,
+        leadThreadIds: [teamProject.leadThreadId],
+      });
+  }
+  const byLead = new Map(
+    [...groups.values()].flatMap((g) =>
+      g.leadThreadIds.map((id) => [id, g] as const),
+    ),
+  );
+  for (const t of threads) {
+    const group = t.workbenchTeamLeadThreadId
+      ? byLead.get(t.workbenchTeamLeadThreadId)
+      : undefined;
+    if (group && !pinned.has(t.id)) group.project.threads.push(t);
+  }
+  return [...groups.values()];
 }
 
 /** Ownership comes only from explicit roots and their descendants. A shared BB
@@ -146,6 +227,7 @@ export function teamSectionId(leadId: string): `project:${string}` {
 export function partitionTeamThreads(
   threads: readonly SidebarThread[],
   team?: TeamSidebarDto,
+  nativeLeadIds: ReadonlySet<string> = new Set(),
 ) {
   if (!team?.enabled)
     return { sections: threads, members: [] as SidebarThread[] };
@@ -166,6 +248,7 @@ export function partitionTeamThreads(
     ]);
   const byId = new Map(threads.map((t) => [t.id, t]));
   type Ownership = {
+    native?: true;
     home?: string;
     memberId?: string;
     project?: TeamSidebarDto["projects"][number];
@@ -178,7 +261,7 @@ export function partitionTeamThreads(
     while (id && !resolved.has(id) && !seen.has(id)) {
       seen.add(id);
       path.push(id);
-      if (leads.has(id) || homes.has(id)) {
+      if (leads.has(id) || homes.has(id) || nativeLeadIds.has(id)) {
         id = null;
         break;
       }
@@ -189,10 +272,13 @@ export function partitionTeamThreads(
       const lead = leads.get(child),
         home = homes.get(child),
         owner = backgrounds.get(child);
-      if (lead) ownership = { project: lead };
+      if (nativeLeadIds.has(child)) ownership = { native: true };
+      else if (lead) ownership = { project: lead };
       else if (home)
         ownership = { home: home.threadId, memberId: home.memberId };
-      else if (owner) {
+      else if (ownership.native) {
+        /* Unresolved project work stays native, even when assigned. */
+      } else if (owner) {
         // Only an explicitly owned work root may use its BB project to find a
         // unique lead. Ambiguous/shared projects stay with the member unless
         // ancestry names a lead. Never guess the first of two leads.
@@ -205,6 +291,8 @@ export function partitionTeamThreads(
             ownership.project ??
             (candidates.length === 1 ? candidates[0] : undefined),
         };
+        // A skipped/unresolved project lead and its work must remain native.
+        if (owner.kind === "project-lead" && !ownership.project) ownership = {};
       }
       resolved.set(child, ownership);
     }
@@ -235,6 +323,8 @@ export function partitionTeamThreads(
             }
           : { ...t, workbenchTeamMemberId: own.memberId },
       );
+    } else if (own.native) {
+      sections.push(t);
     } else if (!hidden.has(t.id)) {
       sections.push(
         own.project

@@ -6,7 +6,10 @@ import {
   renderSlot,
 } from "@get-bb/plugin-sdk/testing/app";
 import { makeSidebarThread } from "../../app/model/fixtures.js";
-import { teamFixture } from "../../app/workbench/team-fixtures.js";
+import {
+  teamFixture,
+  teamLiveShapeFixture,
+} from "../../app/workbench/team-fixtures.js";
 import { defaultPreferences } from "../../shared/preferences.js";
 import { setPreferencesMirrorStorageForTest } from "../../app/preferences/preferences-sync.js";
 
@@ -23,7 +26,13 @@ document.getElementById("controls")!.innerHTML =
 installTestPluginRuntime();
 setPreferencesMirrorStorageForTest(null);
 const app = await loadPluginApp(() => import("../../app.js"));
-const fixture = teamFixture(morning ? "09:00" : "14:30");
+const fixture = params.has("live")
+  ? teamLiveShapeFixture()
+  : teamFixture(morning ? "09:00" : "14:30");
+if (params.has("unbroken")) fixture.team.lead!.name = "N".repeat(40);
+const count = Number(params.get("count"));
+if (params.has("count") && Number.isSafeInteger(count) && count >= 0)
+  fixture.team.yourMove.count = count;
 const sections: {
   id: string;
   name: string;

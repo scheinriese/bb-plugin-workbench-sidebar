@@ -1,6 +1,10 @@
 import { useTeamState } from "../workbench/BoatState.js";
 import { TeamBlock } from "../workbench/TeamBlock.js";
-import { partitionTeamThreads } from "../workbench/team.js";
+import {
+  resolveTeamProjects,
+  groupTeamProjects,
+  partitionTeamThreads,
+} from "../workbench/team.js";
 import { useOrderHold, holdComparator } from "../workbench/OrderHold.js";
 import { firstRollupCrossings } from "../workbench/auto-collapse.js";
 import {
@@ -1323,13 +1327,35 @@ function ProjectListComponent({
     useSidebarData();
   const personalProjectId = personalProject?.id ?? null;
   const team = useTeamState();
+  const resolvedProjects = useMemo(
+    () => resolveTeamProjects(team, projects),
+    [team, projects],
+  );
+  const placementTeam = useMemo(
+    () =>
+      team
+        ? { ...team, projects: resolvedProjects.map((p) => p.teamProject) }
+        : undefined,
+    [team, resolvedProjects],
+  );
+  const nativeLeadIds = useMemo(() => {
+    const resolvedIds = new Set(
+      resolvedProjects.map((p) => p.teamProject.leadThreadId),
+    );
+    return new Set(
+      (team?.projects ?? [])
+        .map((p) => p.leadThreadId)
+        .filter((id) => !resolvedIds.has(id)),
+    );
+  }, [team, resolvedProjects]);
   const teamPartition = useMemo(
     () =>
       partitionTeamThreads(
         projects.flatMap((project) => project.threads),
-        team,
+        placementTeam,
+        nativeLeadIds,
       ),
-    [projects, team],
+    [projects, placementTeam, nativeLeadIds],
   );
   const teamPinnedIds = useMemo(
     () =>
@@ -1341,36 +1367,15 @@ function ProjectListComponent({
   );
   const teamProjects = useMemo(
     () =>
-      (team?.projects ?? []).flatMap((teamProject) => {
-        const leadHome = projects
-          .flatMap((p) => p.threads)
-          .find((t) => t.id === teamProject.leadThreadId);
-        const project =
-          projects.find((p) => p.id === teamProject.bbProjectId) ??
-          (teamProject.bbProjectId === "personal"
-            ? personalProject
-            : undefined) ??
-          projects.find((p) => p.id === leadHome?.projectId);
-        return project
-          ? [
-              {
-                teamProject,
-                project: {
-                  ...project,
-                  threads: teamPartition.sections.filter(
-                    (t) =>
-                      t.workbenchTeamLeadThreadId ===
-                        teamProject.leadThreadId && !teamPinnedIds.has(t.id),
-                  ),
-                },
-              },
-            ]
-          : [];
-      }),
-    [projects, personalProject, team, teamPartition, teamPinnedIds],
+      groupTeamProjects(
+        resolvedProjects,
+        teamPartition.sections,
+        teamPinnedIds,
+      ),
+    [resolvedProjects, teamPartition, teamPinnedIds],
   );
   const renderedTeamLeads = useMemo(
-    () => new Set(teamProjects.map((p) => p.teamProject.leadThreadId)),
+    () => new Set(teamProjects.flatMap((p) => p.leadThreadIds)),
     [teamProjects],
   );
   const threads = useMemo(

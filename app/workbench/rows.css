@@ -664,20 +664,21 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-title-line { flex: 1; min-width: 0; }
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-second-line { max-width: 60%; font-size: 12px; text-align: right; }
 .wb-list .wb-team-member .wb-member-unread { display: inline-flex; align-items: center; gap: 4px; width: auto; color: var(--muted-foreground, #8a8a8a); font-size: 10px; }
-.wb-chief-tile { position: relative; margin: 6px 8px 12px; border: 1px solid #303030; border-radius: 10px; background: #262626; }
-.wb-list .wb-team-chief { height: 62px !important; padding-left: 2px !important; padding-right: 10px; }
+.wb-chief-tile { container-type: inline-size; container-name: wb-chief; position: relative; margin: 6px 8px 12px; border: 1px solid #303030; border-radius: 10px; background: #262626; }
+.wb-list .wb-team-chief { height: auto !important; min-height: 62px; padding: 8px 10px 8px 2px !important; }
 .wb-team-chief .wb-team-avatar { flex-basis: 64px; width: 64px; height: 50px; }
 .wb-team-avatar[data-chief] > .wb-team-face { width: 40.8px; height: 40.8px; position: relative; z-index: 2; }
-.wb-list .wb-team-chief .wb-text-column { padding-right: 56px; }
-.wb-list .wb-team-chief .wb-title-line { display: flex; gap: 3px; align-items: baseline; }
-.wb-list .wb-team-chief .wb-title { order: -1; font-size: 13px; font-weight: 600; color: #ededed; }
+.wb-list .wb-team-chief .wb-text-column { margin-top: 0; padding-right: 0; min-width: 0; }
+.wb-chief-tile[data-has-count] .wb-team-chief .wb-text-column { padding-right: 44px; }
+.wb-list .wb-team-chief .wb-title-line { display: flex; flex-wrap: wrap; gap: 3px; align-items: baseline; }
+.wb-list .wb-team-chief .wb-title { order: -1; flex: 0 1 auto; max-width: 100%; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; font-size: 13px; font-weight: 600; color: #ededed; }
 .wb-chief-role { color: #a8a8a8; font-size: 13px; white-space: nowrap; }
 .wb-list .wb-team-chief .wb-second-line { color: #a8a8a8; font-size: 12px; margin-top: 3px; }
 .wb-team-chief .wb-row-trailing { display: none; }
-.wb-chief-trailing { position: absolute; display: flex; gap: 6px; align-items: center; right: 10px; top: 21px; }
+.wb-chief-trailing { position: absolute; display: flex; gap: 6px; align-items: center; right: 10px; top: 14px; }
 .wb-team-dock { position: relative; height: 18px; }
 .wb-team-dock > span { position: absolute; top: 0; width: 18px; height: 18px; border-radius: 50%; background: #262626; }
-.wb-your-move { display: inline-flex; align-items: center; justify-content: center; height: 20px; min-width: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 10px; background: #f0b135; color: #151515; font-size: 12px; font-weight: 700; text-decoration: none; }
+.wb-your-move { overflow: hidden; white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; justify-content: center; height: 20px; min-width: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 10px; background: #f0b135; color: #151515; font-size: 12px; font-weight: 700; text-decoration: none; }
 .wb-your-move span { animation: wb-count-in 160ms cubic-bezier(.2,.8,.2,1); }
 .wb-your-move:focus-visible, .wb-team-heading:focus-visible, .wb-team-project-label:focus-visible { outline: 2px solid var(--sidebar-ring, #6e9be8); outline-offset: 2px; }
 .wb-team-heading { display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px; color: var(--muted-foreground, #b7b7b7); font-size: 12px; text-align: left; cursor: pointer; }
@@ -715,7 +716,7 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
 .wb-team-project .wb-section-content::before { content: ''; position: absolute; left: 19px; top: 0; bottom: 0; width: 1px; background: var(--wb-guide, #343434); pointer-events: none; }
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-text-column { margin-top: 0; }
 .wb-list .wb-team-member:not(.wb-team-chief) .wb-row-label { align-items: center; }
-.wb-list .wb-team-chief .wb-text-column { padding-right: var(--wb-chief-trailing-width, 56px); }
+
 .wb-chief-draft { color: #a8a8a8; font-size: 11px; }
 .wb-team-chief:has(.wb-chief-draft) .wb-chief-role { display: none; }
 :root:not(.dark) .wb-chief-draft { color: #525252; }
@@ -726,3 +727,11 @@ html:not(.dark) .wb-list .wb-news-arrived .wb-title {
 :root:not(.dark) .wb-chief-unavailable { color: #525252; }
 .wb-team-face img { display: block; width: 100%; height: 100%; }
 .wb-team-avatar[data-system=calm] .wb-generated-glyph { color: var(--wb-title, #c1c1c1); }
+
+/* Dock never competes with the chief name or count. Only the preview ellipsizes. */
+.wb-chief-dock-row { display: flex; align-items: center; justify-content: end; gap: 6px; padding: 0 10px 8px 76px; min-height: 26px; }
+.wb-dock-overflow { color: var(--muted-foreground, #a8a8a8); font-size: 11px; white-space: nowrap; }
+@container wb-chief (max-width: 260px) {
+  .wb-chief-dock-row, .wb-chief-role { display: none; }
+}
+.wb-list .wb-team-chief .wb-row-main { padding-right: 0 !important; }
