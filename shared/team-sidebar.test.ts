@@ -5,7 +5,10 @@ import {
   TEAM_SIDEBAR_VERSION,
 } from "./team-sidebar.js";
 import { sidebarRpcMethods } from "./boat-sidebar.js";
-import { teamFixture } from "../app/workbench/team-fixtures.js";
+import {
+  teamFixture,
+  teamSharedContainerFixture,
+} from "../app/workbench/team-fixtures.js";
 
 const envelope = (team?: unknown, version = 1) => ({
   version,
@@ -209,4 +212,20 @@ it("slices oversized arrays before validation, retains the chief/all asks and ma
   expect(parsed.lead!.threadId).toBe("thr_nora");
   expect(parsed.yourMove).toEqual(input.yourMove);
   expect(parsed.truncated).toBe(true);
+});
+
+it("preserves separate native and Harbormaster project identities from ce85486", () => {
+  const f = teamSharedContainerFixture();
+  const parsed = parseTeamSidebar(f.team)!;
+  expect(parsed.lead!.bbProjectId).toBe("proj_personal");
+  expect(parsed.lead!.orchestratorProjectId).toBeNull();
+  const portfolio = parsed.projects.find(
+    (p) => p.leadThreadId === "thr_web-lead",
+  )!;
+  expect(portfolio.bbProjectId).toBe("proj_personal");
+  expect(portfolio.orchestratorProjectId).toBe("hm-web");
+  expect(
+    parsed.members.find((m) => m.threadId === portfolio.leadThreadId)!
+      .orchestratorProjectId,
+  ).toBe("hm-web");
 });

@@ -1289,7 +1289,7 @@ describe("native and Team project drag targets", () => {
     const props = { project, threadListState: { status: 'ready' as const, threads: [] }, isActive: false, isCollapsed: false, compareThreads: () => 0, collapsedThreadIds: new Set<string>(), collapsedEnvironmentIds: new Set<string>(), onToggleProjectCollapsed: vi.fn(), onToggleThreadCollapsed: vi.fn(), onToggleEnvironmentCollapsed: vi.fn() };
     const { container } = renderTree(<SectionThreadDndProvider value={makeSectionDnd({ dragOverParentKey })}>
       <ProjectRow {...props} />
-      <ProjectRow {...props} teamProject={{ bbProjectId: project.id, leadThreadId: 'lead-home', icon: 'Folder' }} />
+      <ProjectRow {...props} teamProject={{ bbProjectId: project.id, orchestratorProjectId: null, leadThreadId: 'lead-home', icon: 'Folder' }} />
     </SectionThreadDndProvider>);
     const nativeKey = buildSidebarEntitySectionId('project', project.id);
     const teamKey = teamSectionId('lead-home');

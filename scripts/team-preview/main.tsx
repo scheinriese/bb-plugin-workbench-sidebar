@@ -9,6 +9,7 @@ import { makeSidebarThread } from "../../app/model/fixtures.js";
 import {
   teamFixture,
   teamLiveShapeFixture,
+  teamSharedContainerFixture,
 } from "../../app/workbench/team-fixtures.js";
 import { defaultPreferences } from "../../shared/preferences.js";
 import { setPreferencesMirrorStorageForTest } from "../../app/preferences/preferences-sync.js";
@@ -26,9 +27,11 @@ document.getElementById("controls")!.innerHTML =
 installTestPluginRuntime();
 setPreferencesMirrorStorageForTest(null);
 const app = await loadPluginApp(() => import("../../app.js"));
-const fixture = params.has("live")
-  ? teamLiveShapeFixture()
-  : teamFixture(morning ? "09:00" : "14:30");
+const fixture = params.has("shared")
+  ? teamSharedContainerFixture()
+  : params.has("live")
+    ? teamLiveShapeFixture()
+    : teamFixture(morning ? "09:00" : "14:30");
 if (params.has("unbroken")) fixture.team.lead!.name = "N".repeat(40);
 const count = Number(params.get("count"));
 if (params.has("count") && Number.isSafeInteger(count) && count >= 0)
@@ -56,6 +59,7 @@ if (params.has("review")) {
   fixture.team.members.push(lead);
   fixture.team.projects.push({
     bbProjectId: "web",
+    orchestratorProjectId: null,
     leadThreadId: lead.threadId,
     icon: "Book",
   });

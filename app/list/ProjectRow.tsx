@@ -2263,16 +2263,20 @@ function ProjectRowComponent({
   projectRowStyle,
 }: ProjectRowProps) {
   const sdk = useSdk();
+  const navigate = useBbNavigate();
   const sectionKey = teamProject
     ? teamSectionId(teamProject.leadThreadId)
     : buildSidebarEntitySectionId("project", project.id);
   const rename = useSidebarRename({
     kind: "project",
     id: project.id,
-    ownerKey: `project:${project.id}`,
+    ownerKey: teamProject ? sectionKey : `project:${project.id}`,
     name: project.name,
     label: "Project name",
-    onSave: (name) => sdk.projects.update({ projectId: project.id, name }),
+    onSave: async (name) => {
+      if (!teamProject)
+        await sdk.projects.update({ projectId: project.id, name });
+    },
   });
   const [isDropdownActionsOpen, setIsDropdownActionsOpen] = useState(false);
   const [isContextActionsOpen, setIsContextActionsOpen] = useState(false);
@@ -2318,19 +2322,35 @@ function ProjectRowComponent({
     <SidebarHeaderControls
       label={project.name}
       sectionId={buildSidebarEntitySectionId("project", project.id)}
-      onNewThread={onCreateProjectThread ? handleCreateThread : undefined}
+      onNewThread={
+        !teamProject && onCreateProjectThread ? handleCreateThread : undefined
+      }
       onOpenChange={setIsDropdownActionsOpen}
       onCloseAutoFocus={rename.onCloseAutoFocus}
     >
-      <ProjectActionsMenuItems
-        project={project}
-        surface="dropdown"
-        onRename={rename.startEditingFromMenu}
-        onRemove={requestRemove}
-        extraActions={(surface) => (
-          <ThreadListVisibilityMenuItems surface={surface} />
-        )}
-      />
+      {teamProject ? (
+        <>
+          <DropdownMenuItem
+            onSelect={() => {
+              navigate.toPluginPanel("cloud-agents", { subPath: "projects" });
+              onProjectSelect?.();
+            }}
+          >
+            Team projects
+          </DropdownMenuItem>
+          <ThreadListVisibilityMenuItems />
+        </>
+      ) : (
+        <ProjectActionsMenuItems
+          project={project}
+          surface="dropdown"
+          onRename={rename.startEditingFromMenu}
+          onRemove={requestRemove}
+          extraActions={(surface) => (
+            <ThreadListVisibilityMenuItems surface={surface} />
+          )}
+        />
+      )}
     </SidebarHeaderControls>
   );
 
@@ -2341,7 +2361,7 @@ function ProjectRowComponent({
           <ThreadListVisibilityMenuItems surface={surface} />
         )}
         project={project}
-        disabled={rename.isEditing}
+        disabled={!!teamProject || rename.isEditing}
         onRename={rename.startEditingFromMenu}
         onRemove={requestRemove}
         onCloseAutoFocus={rename.onCloseAutoFocus}
@@ -2364,8 +2384,10 @@ function ProjectRowComponent({
               ) : undefined
             }
             dropParentKey={sectionKey}
-            labelEditor={rename.editor}
-            onRename={rename.startEditingFromDoubleClick}
+            labelEditor={teamProject ? undefined : rename.editor}
+            onRename={
+              teamProject ? undefined : rename.startEditingFromDoubleClick
+            }
             actions={projectActions}
             actionsMobileAlways
             actionsOpen={isActionsOpen}

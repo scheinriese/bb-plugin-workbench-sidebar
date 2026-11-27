@@ -606,9 +606,13 @@ function ThreadRowComponent({
       ? teamIndex.membersById.get(thread.workbenchTeamMemberId)
       : undefined);
   const isTeamRow = !!(member || assignee || thread.workbenchTeamLeadThreadId);
-  const projectName = useSidebarProjectName(
+  const nativeProjectName = useSidebarProjectName(
     thread.workbenchTeamProjectId ?? null,
   );
+  const projectName = thread.workbenchTeamLeadThreadId
+    ? (teamIndex.projectNames.get(thread.workbenchTeamLeadThreadId) ??
+      nativeProjectName)
+    : nativeProjectName;
   const memberLine = member ? memberPreview(member, projectName) : null;
   const providerVisible =
     team?.enabled && (member || assignee || thread.boat?.role === "review")

@@ -15,6 +15,18 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
     memberId,
     name,
     threadId: `thr_${memberId}`,
+    bbProjectId:
+      memberId === "web-lead"
+        ? "web"
+        : memberId === "docs-lead"
+          ? "docs"
+          : "personal",
+    orchestratorProjectId:
+      memberId === "web-lead"
+        ? "hm-web"
+        : memberId === "docs-lead"
+          ? "hm-docs"
+          : null,
     kind: "specialist",
     avatar: { initials: name.slice(0, 1), color: "blue" },
     status: "active",
@@ -94,7 +106,7 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
         },
         backgroundThreadIds: ["thr_checkout"],
       }),
-      member("docs-lead", "Docs lead", {
+      member("docs-lead", "Docs site lead", {
         kind: "project-lead",
         preview: {
           kind: "activity",
@@ -105,8 +117,18 @@ export function teamFixture(time: "09:00" | "14:30" = "14:30") {
       }),
     ],
     projects: [
-      { bbProjectId: "web", icon: "Folder", leadThreadId: "thr_web-lead" },
-      { bbProjectId: "docs", icon: "Folder", leadThreadId: "thr_docs-lead" },
+      {
+        bbProjectId: "web",
+        orchestratorProjectId: "hm-web",
+        icon: "Folder",
+        leadThreadId: "thr_web-lead",
+      },
+      {
+        bbProjectId: "docs",
+        orchestratorProjectId: "hm-docs",
+        icon: "Folder",
+        leadThreadId: "thr_docs-lead",
+      },
     ],
     hideFromSections: [
       "thr_nora",
@@ -230,6 +252,7 @@ export function teamLiveShapeFixture() {
   f.team.members.push(alias);
   f.team.projects.push({
     bbProjectId: "another-internal-id",
+    orchestratorProjectId: "hm-web",
     leadThreadId: alias.threadId,
     icon: "Folder",
   });
@@ -257,5 +280,85 @@ export function teamLiveShapeFixture() {
       text: "Review this work",
       tone: "neutral",
     };
+  return f;
+}
+
+/** Different Harbormaster projects may share the same native Personal container. */
+export function teamSharedContainerFixture() {
+  const f = teamLiveShapeFixture();
+  const personal = f.projects.find((p) => p.isPersonal)!;
+  personal.id = "proj_personal";
+  personal.href = "/projects/proj_personal";
+  personal.settingsHref = "/settings/projects/proj_personal";
+  f.projects.find((p) => p.id === "web")!.name = "Boat plugin";
+  for (const t of f.threads)
+    if (t.projectId === "personal") {
+      t.projectId = "proj_personal";
+      t.href = `/projects/proj_personal/threads/${t.id}`;
+    }
+  f.team.lead!.bbProjectId = "proj_personal";
+  for (const m of f.team.members) m.bbProjectId = "proj_personal";
+  const titles = new Map([
+    ["thr_web-lead", "Portfolio"],
+    ["thr_docs-lead", "Docs site"],
+    ["thr_portfolio_alias", "Portfolio"],
+  ]);
+  for (const m of f.team.members.filter((m) => m.kind === "project-lead")) {
+    m.name = `${titles.get(m.threadId)} lead`;
+    const home = f.threads.find((t) => t.id === m.threadId)!;
+    home.projectId = "proj_personal";
+    home.href = `/projects/proj_personal/threads/${home.id}`;
+  }
+  f.team.projects = f.team.projects.map((p) => ({
+    ...p,
+    bbProjectId: "proj_personal",
+  }));
+  for (const [id, name, native] of [
+    ["video", "Video pipeline", "proj_personal"],
+    ["search", "Search app", "proj_personal"],
+    ["boat", "Boat plugin", "web"],
+  ]) {
+    const lead = {
+      ...f.team.members[5]!,
+      memberId: id!,
+      threadId: `thr_${id}_lead`,
+      name: `${name} lead`,
+      bbProjectId: native!,
+      orchestratorProjectId: `hm-${id}`,
+      backgroundThreadIds: [`thr_${id}_work`],
+    };
+    f.team.members.push(lead);
+    f.team.projects.push({
+      bbProjectId: native!,
+      orchestratorProjectId: lead.orchestratorProjectId,
+      leadThreadId: lead.threadId,
+      icon: "Folder",
+    });
+    f.threads.push(
+      makeSidebarThread({
+        id: lead.threadId,
+        title: lead.name,
+        projectId: native,
+      }),
+      makeSidebarThread({
+        id: lead.backgroundThreadIds[0],
+        title: `${name} work`,
+        projectId: native,
+        parentThreadId: lead.threadId,
+      }),
+    );
+    f.states.push({
+      ...f.states[0]!,
+      threadId: lead.backgroundThreadIds[0]!,
+      parentThreadId: lead.threadId,
+    });
+  }
+  f.threads.push(
+    makeSidebarThread({
+      id: "plain-personal",
+      title: "Plain Personal chat",
+      projectId: "proj_personal",
+    }),
+  );
   return f;
 }

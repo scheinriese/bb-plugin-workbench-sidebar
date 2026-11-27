@@ -1,6 +1,6 @@
 // Boat is independent of the sidebar. Consumers call this additive v1 RPC.
 import { z } from "zod";
-/** Versioned Team projection, synced with Harbormaster 0b2a349. */
+/** Versioned Team projection, synced with Harbormaster ce85486. */
 export const TEAM_SIDEBAR_VERSION = 1 as const;
 export const TEAM_SIDEBAR_LIMITS = {
   members: 200,
@@ -17,6 +17,8 @@ export const teamPreviewSchema = z.object({
 export const teamMemberSchema = z.object({
   memberId: sidebarId,
   threadId: sidebarId,
+  bbProjectId: sidebarId,
+  orchestratorProjectId: sidebarId.nullable(),
   name: z.string().max(40),
   kind: z.enum(["lead", "specialist", "project-lead"]),
   avatar: z.object({ initials: z.string().max(8), color: z.string().max(32) }),
@@ -43,6 +45,7 @@ const teamSidebarV1Schema = z.object({
     .array(
       z.object({
         bbProjectId: sidebarId,
+        orchestratorProjectId: sidebarId.nullable(),
         icon: z.string().max(64),
         leadThreadId: sidebarId,
       }),

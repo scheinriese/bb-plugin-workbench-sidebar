@@ -76,7 +76,7 @@ open existing home chats; project header links open existing lead chats.
 
 The parser and types live in `shared/boat-sidebar.ts`; `shared/team-sidebar.ts`
 only re-exports them. They match Harbormaster `contract-team.ts` and
-`docs/team/SIDEBAR-DTO.md` at commit `0b2a349` on branch
+`docs/team/SIDEBAR-DTO.md` at commit `ce85486` on branch
 `boat/7db539cc-build-team-phase-1a-engine-asks-and-team`.
 
 **Versioning:** the outer `sidebarState` response and nested Team projection
@@ -90,7 +90,8 @@ type Team = {
   version: 1;
   enabled: true;
   yourMove: { count: number; overdue: number; confirm: number };
-  projects: { bbProjectId: string; icon: string; leadThreadId: string }[];
+  projects: { bbProjectId: string; orchestratorProjectId: string | null;
+    icon: string; leadThreadId: string }[];
   lead: Member | null; // before a real chief home exists
   members: Member[]; // excludes chief, includes specialists and project leads
   hideFromSections: string[];
@@ -100,6 +101,8 @@ type Team = {
 type Member = {
   memberId: string;
   threadId: string; // existing, nonempty home chat ID
+  bbProjectId: string; // native storage container
+  orchestratorProjectId: string | null; // Harbormaster project identity
   name: string;
   kind: 'lead' | 'specialist' | 'project-lead';
   avatar: { initials: string; color: string };
@@ -130,23 +133,29 @@ moving facts; paused/archived members do not orbit. The avatar object's
 initials/color are metadata, not an SVG path, URL or arbitrary markup. Workbench
 selects only its own bundled H3/H2 role silhouettes.
 
-There are no per-member project/provider fields, nor thread assignment/default-
-provider/handoff fields, in the engine's v1 DTO. The provisional fields have
-been removed from the parser and all consumers. `leadThreadId`, member homes,
-and `backgroundThreadIds` plus their descendants
-identify ownership. **A matching BB project id alone never makes a chat Team
-work.** Only explicitly owned work roots may use their host project to select
-a unique lead; ambiguous shared-project work stays with its member unless
-ancestry identifies a lead. Loaded native lead-home projects are authoritative.
-Unknown engine ids never
-fall back to an invented Personal project; unresolvable homes/work remain
-native. Repeated lead-thread records are deduplicated, and leads sharing one
-actual BB project merge into one Team header with all their work retained.
-The first resolved lead is the stable header chat target. Plain chats retain
-native grouping and custom sections. Host project facts are never rewritten.
-Existing thread provider facts still drive
-review and non-default provider marks (Claude is the sidebar's default).
-V1 cannot supply a truthful handoff-history chip, so none is invented.
+The `ce85486` projection carries **two distinct project identities** on member
+rows and projects: `bbProjectId` is native storage, while
+`orchestratorProjectId` is Harbormaster's project. Several Harbormaster projects
+can share `proj_personal`; this never merges their headers or labels them
+Personal. Headers are grouped by `orchestratorProjectId` and keyed by
+`leadThreadId`. Repeated records for one lead or one Harbormaster project are
+deduplicated without dropping work. Null Harbormaster ids fall back to a
+lead-specific identity, never to grouping by the BB container.
+
+There is no project display-name field in this DTO. The header uses the lead
+name with the trailing " lead" removed (or "Project" if unavailable), never
+the native container name. Native home threads remain authoritative for
+storage/routing. If neither the native home nor the claimed BB id resolves,
+the header is skipped and its work remains native. Task placement is by lead
+ancestry or explicit member work, **never by a matching BB project alone**.
+Plain Personal chats stay native. Member previews use the Harbormaster title
+("in Portfolio"), not "in Personal". Team header menus open Team project
+management; they do not rename/delete the native Personal project or create
+unassigned native chats under a misleading Harbormaster title. Native project
+actions remain unchanged in ordinary project groups.
+
+V1 still has no provider/default-provider or handoff-history fields, so no
+handoff chip is invented. Existing thread provider facts drive row marks.
 
 The engine's chief preview text is always her **latest line**, including when
 its kind is `needs-you` while asks exist. The tile renders that text neutrally

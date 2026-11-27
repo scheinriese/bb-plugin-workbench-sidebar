@@ -6,7 +6,7 @@ import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import type { PluginThreadListProps } from "@get-bb/plugin-sdk/app";
 import { sidebarRpcMethods } from "../../shared/boat-sidebar.js";
 import { defaultPreferences } from "../../shared/preferences.js";
-import { teamFixture } from "./team-fixtures.js";
+import { teamFixture, teamSharedContainerFixture } from "./team-fixtures.js";
 import {
   resetPreferencesSyncForTest,
   setPreferencesMirrorStorageForTest,
@@ -401,6 +401,7 @@ it.each(["chronological", "project", "machine"] as const)(
         );
         f.team.projects.push({
           bbProjectId: "personal",
+          orchestratorProjectId: null,
           icon: "Folder",
           leadThreadId: "projectless-lead",
         });
@@ -490,6 +491,7 @@ it("merges duplicate leads into one BB-project header without losing their work"
       f.team.members.push(lead);
       f.team.projects.push({
         bbProjectId: "web",
+        orchestratorProjectId: "hm-web",
         icon: "Book",
         leadThreadId: lead.threadId,
       });
@@ -623,6 +625,7 @@ it("skips an unresolvable project header and leaves its home and work native", a
   await mount({
     modify: (f) => {
       f.team.projects[0]!.bbProjectId = "unknown";
+      f.team.members[5]!.bbProjectId = "unknown";
       f.threads.splice(
         f.threads.findIndex((t) => t.id === "thr_web-lead"),
         1,
@@ -683,4 +686,69 @@ it("keeps a long chief name intact with three dock faces and an overflow indicat
   expect(tile.querySelector(".wb-dock-overflow")?.textContent).toBe("+4");
   expect(tile.querySelector(".wb-chief-trailing .wb-team-dock")).toBeNull();
   expect(tile.querySelector(".wb-your-move")?.textContent).toBe("57");
+});
+
+it("keeps four distinct Harbormaster projects in Personal plus one in a native project, with no Personal header", async () => {
+  await mount({
+    modify: (f) => Object.assign(f, teamSharedContainerFixture()),
+  });
+  await screen.findByLabelText("Open Portfolio lead chat");
+  const headers = document.querySelectorAll("[data-team-project-lead]");
+  expect(headers).toHaveLength(5);
+  for (const title of [
+    "Portfolio",
+    "Video pipeline",
+    "Docs site",
+    "Search app",
+    "Boat plugin",
+  ]) {
+    expect(screen.getByLabelText(`Open ${title} lead chat`)).not.toBeNull();
+  }
+  for (const header of headers)
+    expect(
+      header.querySelector(".wb-team-project-label")!.textContent,
+    ).not.toContain("Personal");
+  expect(
+    document
+      .querySelector('[data-sidebar-thread-id="plain-personal"]')!
+      .closest(".wb-team-block"),
+  ).toBeNull();
+  expect(
+    document.querySelector(
+      '[data-team-project-lead="thr_web-lead"] [data-sidebar-thread-id="thr_alias_work"]',
+    ),
+  ).not.toBeNull();
+  expect(
+    document.querySelector(
+      '[data-team-project-lead="thr_video_lead"] [data-sidebar-thread-id="thr_video_work"]',
+    ),
+  ).not.toBeNull();
+});
+
+it("routes Harbormaster header management to Team, not native Personal project CRUD", async () => {
+  const { inspection } = await mount({
+    modify: (f) => Object.assign(f, teamSharedContainerFixture()),
+  });
+  const header = await screen.findByLabelText("Open Portfolio lead chat");
+  fireEvent.doubleClick(
+    header
+      .closest('[data-sidebar-sticky-tier="label"]')!
+      .querySelector('[title="Portfolio"]')!,
+  );
+  expect(screen.queryByRole("textbox", { name: "Project name" })).toBeNull();
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: "Portfolio actions" }),
+    { button: 0 },
+  );
+  await screen.findByRole("menu");
+  expect(screen.queryByRole("menuitem", { name: "Rename" })).toBeNull();
+  expect(screen.queryByRole("menuitem", { name: "Remove" })).toBeNull();
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Team projects" }),
+  );
+  expect(inspection.navigateCalls).toContainEqual({
+    method: "toPluginPanel",
+    path: "cloud-agents",
+    options: { subPath: "projects" },
+  });
 });

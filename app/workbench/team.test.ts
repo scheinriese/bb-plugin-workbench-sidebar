@@ -155,6 +155,7 @@ it("never treats a shared BB project or Personal as Team ownership", () => {
   });
   f.team.projects.push({
     bbProjectId: "personal",
+    orchestratorProjectId: null,
     leadThreadId: "projectless-lead",
     icon: "Folder",
   });
@@ -171,7 +172,11 @@ it("never treats a shared BB project or Personal as Team ownership", () => {
 it("places explicitly owned work and descendants, without sweeping sibling chats", () => {
   const f = teamFixture();
   f.team.members[0]!.backgroundThreadIds = ["assigned"];
-  const assigned = makeSidebarThread({ id: "assigned", projectId: "web" });
+  const assigned = makeSidebarThread({
+    id: "assigned",
+    projectId: "web",
+    parentThreadId: "thr_web-lead",
+  });
   const child = makeSidebarThread({
     id: "assigned-child",
     projectId: "personal",
@@ -195,6 +200,7 @@ it("keeps two leads in a shared project separate by ancestry", () => {
   const f = teamFixture();
   f.team.projects.push({
     bbProjectId: "web",
+    orchestratorProjectId: null,
     leadThreadId: "other-lead",
     icon: "Book",
   });
@@ -255,11 +261,11 @@ it("does not invent an empty Personal header from an unknown id or an unloaded h
     ...p,
     threads: f.threads.filter((t) => t.projectId === p.id),
   }));
-  expect(
-    resolveTeamProjects(f.team, projects).some(
-      (p) => p.teamProject.leadThreadId === home.id,
-    ),
-  ).toBe(false);
+  const resolved = resolveTeamProjects(f.team, projects).find(
+    (p) => p.teamProject.leadThreadId === home.id,
+  )!;
+  expect(resolved.project.name).toBe("Web app");
+  expect(resolved.project.name).not.toBe("Personal");
 });
 
 it("groups aliases into one project while retaining both work trees and all lead ids", () => {

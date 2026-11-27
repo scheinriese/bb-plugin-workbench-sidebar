@@ -91,10 +91,15 @@ export function buildTeamIndex(
   const assignees = new Map<string, TeamMemberDto>();
   const visuals = new Map<string, TeamVisualState>();
   const projectIcons = new Map<string, string>();
+  const projectNames = new Map<string, string>();
   const orbit: TeamMemberDto[] = [],
     dock: TeamMemberDto[] = [];
   if (team) {
-    for (const p of team.projects) projectIcons.set(p.leadThreadId, p.icon);
+    for (const p of team.projects) {
+      projectIcons.set(p.leadThreadId, p.icon);
+      const lead = team.members.find((m) => m.threadId === p.leadThreadId);
+      projectNames.set(p.leadThreadId, projectLabel(lead?.name));
+    }
     const seenHomes = new Set<string>();
     for (const m of [...(team.lead ? [team.lead] : []), ...team.members]) {
       if (seenHomes.has(m.threadId)) continue;
@@ -137,6 +142,7 @@ export function buildTeamIndex(
     assignees,
     visuals,
     projectIcons,
+    projectNames,
     orbit,
     dock: dock.slice(-3),
     dockOverflow: Math.max(0, dock.length - 3),
@@ -146,42 +152,48 @@ export function teamSectionId(leadId: string): `project:${string}` {
   return `project:team:${leadId}`;
 }
 
-/** The native home thread is authoritative, not Harbormaster's internal id.
- * Never manufacture a Personal project when the actual home cannot verify it. */
+function projectLabel(leadName?: string) {
+  const label = (leadName ?? "Project").replace(/\s+lead$/i, "").trim();
+  return label && !/^personal$/i.test(label) ? label : "Project";
+}
+/** Header identity is Harbormaster's project, never the native BB container.
+ * A native home supplies storage/routing only, and is not a display label. */
 export function resolveTeamProjects(
   team: TeamSidebarDto | undefined,
   projects: readonly SidebarProject[],
 ) {
   if (!team?.enabled) return [];
   const byId = new Map(projects.map((p) => [p.id, p]));
-  const threads = projects.flatMap((p) => p.threads);
-  const byThread = new Map(threads.map((t) => [t.id, t]));
+  const byThread = new Map(
+    projects.flatMap((p) => p.threads).map((t) => [t.id, t]),
+  );
+  const members = new Map(team.members.map((m) => [m.threadId, m]));
   const seen = new Set<string>();
-  return (team?.projects ?? []).flatMap((input) => {
+  return team.projects.flatMap((input) => {
     if (seen.has(input.leadThreadId)) return [];
     const home = byThread.get(input.leadThreadId);
     const native = home ? byId.get(home.projectId) : undefined;
-    const claimed = byId.get(input.bbProjectId);
-    const project = native ?? claimed;
-    if (!project || (project.isPersonal && !native?.isPersonal)) return [];
-    // An unknown engine id plus an idle Personal home is not a useful project
-    // section. Keep that home native until real work/project data is available.
-    if (!claimed && project.isPersonal) {
-      const backgrounds = new Set(
-        team?.members.find((m) => m.threadId === input.leadThreadId)
-          ?.backgroundThreadIds ?? [],
-      );
-      if (
-        !threads.some(
-          (t) =>
-            t.id !== input.leadThreadId &&
-            (t.parentThreadId === input.leadThreadId || backgrounds.has(t.id)),
-        )
-      )
-        return [];
-    }
+    const lead = members.get(input.leadThreadId);
+    const project =
+      native ??
+      byId.get(input.bbProjectId) ??
+      byId.get(lead?.bbProjectId ?? "");
+    if (!project) return [];
+    // ce85486 has no project display-name field. Do not show opaque IDs or
+    // "Personal"; the documented fallback is the lead name minus its role.
+    const name = projectLabel(lead?.name ?? home?.displayTitle);
     seen.add(input.leadThreadId);
-    return [{ project, teamProject: { ...input, bbProjectId: project.id } }];
+    return [
+      {
+        project: { ...project, name },
+        teamProject: {
+          ...input,
+          bbProjectId: project.id,
+          orchestratorProjectId:
+            input.orchestratorProjectId ?? lead?.orchestratorProjectId ?? null,
+        },
+      },
+    ];
   });
 }
 export function groupTeamProjects(
@@ -199,10 +211,13 @@ export function groupTeamProjects(
     }
   >();
   for (const { project, teamProject } of resolved) {
-    const group = groups.get(project.id);
+    const identity = teamProject.orchestratorProjectId
+      ? `hm:${teamProject.orchestratorProjectId}`
+      : `lead:${teamProject.leadThreadId}`;
+    const group = groups.get(identity);
     if (group) group.leadThreadIds.push(teamProject.leadThreadId);
     else
-      groups.set(project.id, {
+      groups.set(identity, {
         project: { ...project, threads: [] },
         teamProject,
         leadThreadIds: [teamProject.leadThreadId],
@@ -240,12 +255,6 @@ export function partitionTeamThreads(
     for (const id of m.backgroundThreadIds)
       if (!backgrounds.has(id)) backgrounds.set(id, m);
   const leads = new Map(team.projects.map((p) => [p.leadThreadId, p]));
-  const projectsById = new Map<string, TeamSidebarDto["projects"]>();
-  for (const p of team.projects)
-    projectsById.set(p.bbProjectId, [
-      ...(projectsById.get(p.bbProjectId) ?? []),
-      p,
-    ]);
   const byId = new Map(threads.map((t) => [t.id, t]));
   type Ownership = {
     native?: true;
@@ -279,17 +288,12 @@ export function partitionTeamThreads(
       else if (ownership.native) {
         /* Unresolved project work stays native, even when assigned. */
       } else if (owner) {
-        // Only an explicitly owned work root may use its BB project to find a
-        // unique lead. Ambiguous/shared projects stay with the member unless
-        // ancestry names a lead. Never guess the first of two leads.
-        const candidates =
-          projectsById.get(byId.get(child)?.projectId ?? "") ?? [];
+        // Assignment identity comes from its owning lead or ancestry, never
+        // from a shared native container such as proj_personal.
         ownership = {
           home: owner.threadId,
           memberId: owner.memberId,
-          project:
-            ownership.project ??
-            (candidates.length === 1 ? candidates[0] : undefined),
+          project: ownership.project ?? leads.get(owner.threadId),
         };
         // A skipped/unresolved project lead and its work must remain native.
         if (owner.kind === "project-lead" && !ownership.project) ownership = {};
@@ -298,11 +302,16 @@ export function partitionTeamThreads(
     }
   }
   const activeProjects = new Map<string, string>();
+  const activeLeads = new Map<string, string>();
   for (const m of roster) {
     const project = m.backgroundThreadIds
       .map((id) => resolved.get(id)?.project?.bbProjectId)
       .find(Boolean);
     if (project) activeProjects.set(m.threadId, project);
+    const lead = m.backgroundThreadIds
+      .map((id) => resolved.get(id)?.project?.leadThreadId)
+      .find(Boolean);
+    if (lead) activeLeads.set(m.threadId, lead);
   }
   const hidden = new Set([
     ...team.hideFromSections,
@@ -320,6 +329,7 @@ export function partitionTeamThreads(
               ...t,
               parentThreadId: null,
               workbenchTeamProjectId: activeProjects.get(t.id),
+              workbenchTeamLeadThreadId: activeLeads.get(t.id),
             }
           : { ...t, workbenchTeamMemberId: own.memberId },
       );
