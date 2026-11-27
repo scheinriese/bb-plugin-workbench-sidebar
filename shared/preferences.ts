@@ -90,6 +90,24 @@ function definePreference<Schema extends z.ZodTypeAny>(
 }
 
 export const preferenceDefinitions = {
+  showProviderOnEveryRow: definePreference(
+    z.boolean(),
+    false,
+    "Show provider on every row, including Team.",
+    null,
+  ),
+  calmFaces: definePreference(
+    z.boolean(),
+    false,
+    "Use calm outline faces instead of Orbit avatars.",
+    null,
+  ),
+  teamCollapsed: definePreference(
+    z.boolean(),
+    false,
+    "Collapse the Team members block.",
+    null,
+  ),
   showProviderIcons: definePreference(
     z.boolean(),
     true,
@@ -190,7 +208,12 @@ export const preferenceDefinitions = {
     "Project ids whose rows are collapsed.",
     null,
   ),
-  rollupSeenThreads: definePreference(stringListSchema, [], "Chats that have crossed the seven-open-child rollup threshold.", null),
+  rollupSeenThreads: definePreference(
+    stringListSchema,
+    [],
+    "Chats that have crossed the seven-open-child rollup threshold.",
+    null,
+  ),
   collapsedThreads: definePreference(
     stringListSchema,
     [],

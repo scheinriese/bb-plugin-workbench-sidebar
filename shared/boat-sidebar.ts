@@ -1,5 +1,7 @@
 // Boat is independent of the sidebar. Consumers call this additive v1 RPC.
 import { z } from "zod";
+import { optionalTeamSidebarSchema } from "./team-sidebar.js";
+export type { TeamSidebarDto, TeamMemberDto } from "./team-sidebar.js";
 export const sidebarStatusSchema = z.enum([
   "working",
   "review",
@@ -36,14 +38,30 @@ export const sidebarThreadSchema = z.object({
   listedIn: z.string().nullable(),
   hidden: z.boolean(),
   updatedAt: z.string(),
+  assigneeMemberId: z.string().max(200).optional().catch(undefined),
+  defaultProvider: z.enum(["claude", "codex"]).optional().catch(undefined),
+  handoff: z
+    .object({
+      from: z.enum(["claude", "codex"]),
+      to: z.enum(["claude", "codex"]),
+      at: z.string().max(100),
+      reason: z.string().max(500),
+    })
+    .optional()
+    .catch(undefined),
 });
 export type SidebarThreadDto = z.infer<typeof sidebarThreadSchema>;
 export const sidebarQueuedStartSchema = z.object({
-  id: z.string().min(1).max(100), revision: z.number().int().nonnegative(),
-  title: z.string().max(200), sourceThreadId: z.string().max(200).nullable(),
-  provider: z.enum(["claude", "codex"]).nullable(), resetsAt: z.string().max(100).nullable(),
-  createdAt: z.string().max(100), state: z.enum(["waiting", "dispatching", "started"]),
-  taskId: z.string().max(200).nullable(), taskThreadId: z.string().max(200).nullable(),
+  id: z.string().min(1).max(100),
+  revision: z.number().int().nonnegative(),
+  title: z.string().max(200),
+  sourceThreadId: z.string().max(200).nullable(),
+  provider: z.enum(["claude", "codex"]).nullable(),
+  resetsAt: z.string().max(100).nullable(),
+  createdAt: z.string().max(100),
+  state: z.enum(["waiting", "dispatching", "started"]),
+  taskId: z.string().max(200).nullable(),
+  taskThreadId: z.string().max(200).nullable(),
 });
 export type SidebarQueuedStartDto = z.infer<typeof sidebarQueuedStartSchema>;
 export const sidebarRpcMethods = {
@@ -58,6 +76,7 @@ export const sidebarRpcMethods = {
       threads: z.array(sidebarThreadSchema).max(2000),
       queuedStarts: z.array(sidebarQueuedStartSchema).max(200).optional(),
       truncated: z.boolean(),
+      team: optionalTeamSidebarSchema,
     }),
   },
 };
